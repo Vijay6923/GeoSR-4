@@ -95,6 +95,28 @@ Fix ke baad PSNR 14.07 dB, SSIM 0.38, SAM 17.6°, ERGAS 15.87 (n=279 val pairs) 
 
 ---
 
+## D009 — EDSR baseline: fixed a dead-gradient bug (clamp() inside the training forward pass)
+**Date:** 2026-09-08
+**Decision:** `EDSR.forward()` se `torch.clamp(output, 0, 1)` hata diya. Model ab raw (unbounded) output deta hai training ke waqt; clamping sirf inference/evaluation wrapper mein apply hoti hai (`train_edsr.py`'s `evaluate()`), final pixel values banane ke liye — model ke andar nahi.
+**Reasoning:** 16-block/64-channel EDSR banane se pehle 4-block/16-channel tiny version par overfit sanity check kiya (2 hi training examples par, standard ML debugging practice — agar chhote se model sirf 2 examples bhi overfit nahi kar sakta to pipeline mein zaroor bug hai). Loss 15 epochs (30 steps) tak bilkul flat raha, jo suspicious tha. Gradient norm directly check kiya to woh exactly 0.0 tha step ~50 ke baad — matlab gradient completely mar chuka tha.
+
+Root cause: model ka raw output init ke time already [-0.24, 0.25] range mein tha (kuch pixels 0 se neeche), aur `torch.clamp()` zero-gradient hota hai apni clip range ke bahar. Jaise-jaise training aage badhti, aur zyada pixels [0,1] range ke bahar drift karte gaye (L1 loss ka gradient push karta hai), aur end mein saare outputs saturate ho gaye — ek "dead ReLU"-jaisa trap, lekin poore output tensor ke liye.
+
+Fix ke baad same 2-example overfit test: loss 0.60 → ~0.10 (150 steps mein), gradient norm poore time healthy raha (kabhi 0 nahi hua).
+**Alternatives considered:** `sigmoid()` output activation (jo hamesha non-zero gradient deta hai, though extremes par vanishing) — reject kiya kyunki simple linear output + external clamp zyada standard practice hai SR literature mein, aur training ko unnecessarily constrain nahi karta.
+**Status:** Accepted. Yeh bug agar catch nahi hota, to Colab/Kaggle par poora real training run silently fail hota (loss kabhi decrease nahi hota) — kaafi compute aur time waste hota debugging mein baad mein.
+
+---
+
+## D010 — Split dev workflow: write/smoke-test code locally (CPU), run real training on Colab (GPU)
+**Date:** 2026-09-08
+**Decision:** Model/training code is written and validated locally on tiny subsets (few ROIs, few steps, small model config) purely to catch bugs. Actual full training runs (all train-split ROIs, full-size EDSR: 16 blocks/64 channels, many epochs) happen on Colab GPU, via `notebooks/train_edsr_colab.ipynb`, which clones the pushed repo, re-downloads only the cross-sensor split, and reuses the committed `configs/normalization_stats.json` (does not recompute it — must stay identical across local dev and Colab runs).
+**Reasoning:** Laptop has no CUDA GPU; a full 2,283-pair EDSR training run would be impractically slow on CPU. But local smoke-testing on tiny subsets before touching Colab compute is what caught the D009 dead-gradient bug in the first place — if that bug had only surfaced on a full Colab GPU run, it would've wasted real Colab compute-time/quota debugging something a 2-example, 30-second local test could catch.
+**Alternatives considered:** Train fully on this laptop regardless of speed — rejected by user, given (a) time cost and (b) this exact local-smoke-test-first workflow already proved its value by catching D009.
+**Status:** Accepted.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.

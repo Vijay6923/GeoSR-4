@@ -1,0 +1,38 @@
+# datasets (re-downloadable — see decisions.md D002/D003)
+ml/datasets/raw/
+*.zip
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+.ipynb_checkpoints/
+
+# node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+
+# model artifacts / experiment outputs
+*.pth
+*.pt
+*.ckpt
+*.onnx
+experiments/*
+!experiments/.gitkeep
+
+# runtime data (PRD §19 — input/processed/output/uncertainty/models at inference time)
+/data/
+
+# env & secrets
+.env
+.env.*
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/

@@ -60,9 +60,34 @@ Format: har entry ke paas ID, date, decision, reasoning, alternatives, status ho
 
 ---
 
+## D006 — Phase 1 close-out: verified dataset structure empirically (not just from the paper)
+**Date:** 2026-09-08
+**Decision:** `cross-sensor.zip` extract karke actual files inspect kiye, sirf paper ke summary par trust nahi kiya. Verified: 2,851 `ROI_*` folders, har ek mein `lr.tif` (4×121×121, int32, EPSG:32611, 10 m, nodata=-2147483648), `hr.tif` (4×484×484, uint8, 2.5 m, nodata=0), aur `metadata.json` (s2_id, s2_date, naip_id, naip_date, QA1, QA2). 626 distinct MGRS tiles mile (S2 scene id se extract kiya), jo geographic diversity confirm karta hai for a proper region-disjoint split.
+**Reasoning:** PRD khud kehta hai "validation against reference data is essential" — wahi principle apne dataset assumptions par bhi apply hona chahiye. Band order (R,G,B,NIR) empirically confirm kiya pixel statistics se (band 3 ka mean sabse zyada — NIR ke liye expected, vegetation ki wajah se). Yeh Phase 1 ("Dataset v1") ka deliverable complete karta hai.
+**Alternatives considered:** Paper ke documented specs par blindly trust karke seedha training code likhna — reject kiya, kyunki agar assumptions galat nikalte to baad mein training silently broken hota (wrong band order ya wrong normalization divisor jaisi cheezein debug karna mushkil hai).
+**Status:** Accepted. Phase 1 complete.
+
+---
+
+## D007 — Phase 2: tile-disjoint train/val/test split, in-memory Dataset/DataLoader instead of pre-dumped `.npy` patches
+**Date:** 2026-09-08
+**Decision:** `ml/datasets/sen2naip.py` mein ek `tile_disjoint_split()` function likha jo ROIs ko unke S2 MGRS tile ke hisaab se group karke poore tile ko ek hi split (train/val/test — 80/10/10 by tile count) mein daalta hai, taaki spatially close patches alag-alag splits mein na jaayein. `SEN2NAIPCrossSensor` PyTorch `Dataset` class banayi jo `lr.tif`/`hr.tif` ko rasterio se read karke normalize karti hai (LR ÷10000 reflectance scale, HR ÷255 8-bit scale, dono [0,1] mein clip kiye).
+
+PRD ka Phase 2 deliverable literally `preprocess.py` script tha jo `patch_001.npy` jaisi files disk par dump karta — humne iski jagah direct in-memory `Dataset`/`DataLoader` approach liya.
+**Reasoning:**
+- Data already pre-patched hai (121×121 / 484×484 fixed-size tiles) — is dataset ke liye separate tiling/patch-extraction step ki zaroorat nahi (woh step Phase 7+ mein relevant hoga jab hum poori Sentinel-2 scene par inference chalayenge, tab tiling zaroori hoga).
+- Region-based split PRD ka explicit requirement hai (§45: "never randomly mix neighboring patches... data leakage"). MGRS tile ek natural, metadata mein already available geographic grouping hai — isse manually region-boundary draw karne ki zaroorat nahi padi.
+- `.npy` mein pre-dump karna 2,851 pairs ke liye disk space double karta (rasterio read already fast hai prototyping ke liye) — is stage par unnecessary I/O overhead.
+- Nodata handling: LR ke nodata pixels (-2147483648) ko 0 se replace kiya normalize karne se pehle, poore ROI ko discard nahi kiya — kyunki edge-of-tile nodata common hai aur pura pair discard karna data loss hoga. Yeh ek simplification hai; agar training mein artifacts dikhein to isko refine karna hoga (see Open Considerations).
+**Alternatives considered:** Literal `preprocess.py` → `.npy` files approach — reject kiya (reasoning upar). ROI-level random split (PRD explicitly warns against) — reject kiya.
+**Status:** Accepted. Smoke-tested (`ml/datasets/_smoke_test.py`) — batch load, shapes, normalization range, aur tile-disjointness sab verified working.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.
 - **Uncertainty estimation method**: PRD MC-ensemble (5x inference) suggest karta hai; single-pass heteroscedastic head (mean+variance in one forward pass) zyada compute-efficient alternative hai. Final choice benchmarking ke baad decide hoga.
 - **Backend infra scope for MVP demo**: PostGIS/Redis/Celery vs simpler synchronous/local-storage approach — team ki compute/timeline availability dekh kar decide karna hai.
 - **Perceptual loss**: DINOv3 vs standard VGG-based perceptual loss — DINOv3 optional/stretch goal hai per PRD khud bhi.
+- **Nodata handling refinement**: Abhi LR nodata pixels ko 0 se replace kiya ja raha hai (D007). Agar training mein edge artifacts dikhein, to proper masking (loss se exclude karna) ya un ROIs ko filter karna consider karna hoga jinme nodata fraction zyada hai.

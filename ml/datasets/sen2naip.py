@@ -17,9 +17,24 @@ import rasterio
 import torch
 from torch.utils.data import Dataset
 
-LR_REFLECTANCE_MAX = 10000.0
-HR_PIXEL_MAX = 255.0
 TILE_RE = re.compile(r"_T(\d\d[A-Z]{3})_")
+STATS_PATH = "configs/normalization_stats.json"
+
+
+def _load_norm_stats():
+    """Per-band 2nd/98th percentile stats computed from the train split only
+    (ml/datasets/compute_stats.py). Fixed /10000 and /255 divisors put LR and
+    HR on two different, uncalibrated scales -- see decisions.md D008."""
+    with open(STATS_PATH) as f:
+        stats = json.load(f)
+    return np.array(stats["lr_p2_p98"], dtype=np.float32), np.array(stats["hr_p2_p98"], dtype=np.float32)
+
+
+def _normalize(arr: np.ndarray, band_ranges: np.ndarray) -> np.ndarray:
+    """arr: (C,H,W). band_ranges: (C,2) of [p2, p98] per band."""
+    lo = band_ranges[:, 0].reshape(-1, 1, 1)
+    hi = band_ranges[:, 1].reshape(-1, 1, 1)
+    return np.clip((arr - lo) / (hi - lo), 0.0, 1.0)
 
 
 def _tile_id(metadata: dict) -> str:
@@ -66,6 +81,7 @@ def tile_disjoint_split(root: str, val_frac=0.1, test_frac=0.1, seed=42):
 class SEN2NAIPCrossSensor(Dataset):
     def __init__(self, roi_dirs: list[str]):
         self.roi_dirs = roi_dirs
+        self.lr_ranges, self.hr_ranges = _load_norm_stats()
 
     def __len__(self):
         return len(self.roi_dirs)
@@ -75,13 +91,15 @@ class SEN2NAIPCrossSensor(Dataset):
 
         with rasterio.open(os.path.join(roi_dir, "lr.tif")) as src:
             lr = src.read().astype(np.float32)
-            lr[lr == src.nodata] = 0.0
+            nodata_mask = lr == src.nodata
+            lr[nodata_mask] = 0.0
 
         with rasterio.open(os.path.join(roi_dir, "hr.tif")) as src:
             hr = src.read().astype(np.float32)
 
-        lr = np.clip(lr / LR_REFLECTANCE_MAX, 0.0, 1.0)
-        hr = np.clip(hr / HR_PIXEL_MAX, 0.0, 1.0)
+        lr = _normalize(lr, self.lr_ranges)
+        lr[nodata_mask] = 0.0
+        hr = _normalize(hr, self.hr_ranges)
 
         with open(os.path.join(roi_dir, "metadata.json")) as f:
             meta = json.load(f)

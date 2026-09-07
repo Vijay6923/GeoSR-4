@@ -84,6 +84,17 @@ PRD ka Phase 2 deliverable literally `preprocess.py` script tha jo `patch_001.np
 
 ---
 
+## D008 — Fixed normalization: per-band percentile scaling instead of fixed /10000, /255 divisors
+**Date:** 2026-09-08
+**Decision:** D007 ka normalization (LR ÷10000, HR ÷255) replace kiya per-band affine scaling se, jahan har band ka [2nd, 98th] percentile TRAIN split ke 300-ROI sample se compute kiya jaata hai (`ml/datasets/compute_stats.py` → `configs/normalization_stats.json`), phir har image ko us range ke hisaab se [0,1] mein clip+scale kiya jaata hai.
+**Reasoning:** Bicubic baseline pehli baar run kiya to PSNR sirf 9.83 dB aaya — natural-image SR mein typically bicubic 25-35 dB deta hai, to yeh clearly wrong tha. Diagnosis: LR ka ÷10000 (Sentinel-2 ka theoretical saturation ceiling, jo real scenes shayad hi kabhi touch karte hain) aur HR ka ÷255 (jo already ek separate 8-bit contrast-stretch process — dataset paper confirm karta hai ki `hr.tif` = "NAIPh", NAIP ko S2 ke against histogram-matched, phir 8-bit mein re-quantized) — yeh do completely different, uncalibrated scales hain. Ek hi pair par check kiya: SR (bicubic-upsampled LR) ka std HR ke std se 15-20x chhota tha, jabki correlation moderate-positive tha (0.53-0.63) — matlab spatial alignment thik hai (koi misalignment bug nahi), sirf dono images alag dynamic range use kar rahi thi.
+
+Fix ke baad PSNR 14.07 dB, SSIM 0.38, SAM 17.6°, ERGAS 15.87 (n=279 val pairs) aaya — better, but abhi bhi low-ish compared to typical same-sensor synthetic-degradation SR benchmarks (jahan bicubic often 25+ dB deta hai). Yeh ab genuine hai — cross-sensor real data (S2 vs NAIP, alag spectral response functions, alag viewing/illumination geometry) known-hard hai literature mein, exactly isi wajah se dataset ke authors ne "cross-sensor" (hard, real) aur "synthetic" (easier, same-sensor degradation) splits alag rakhe hain. In numbers ko as-is report kar rahe hain, PRD ke apne "never fabricate metrics" principle ke mutabik.
+**Alternatives considered:** Per-image (instead of per-band-global) min-max normalization — reject kiya, kyunki woh scene-to-scene genuine brightness differences ko erase kar deta (jo physically meaningful hai reflectance data ke liye, PRD ke "preserve spectral consistency" requirement ke against jaata). Fixed constants continue karna — reject kiya after diagnosis confirm hua ki woh scientifically invalid comparison de raha tha.
+**Status:** Accepted. Real baseline numbers ab pipeline-verified hain, fabricated nahi.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.

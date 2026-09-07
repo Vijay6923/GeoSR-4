@@ -2,3 +2,4 @@ rasterio
 torch
 numpy
 huggingface_hub
+scikit-image

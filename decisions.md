@@ -185,6 +185,30 @@ Numbers fabricate nahi kiye — jo mila wahi report kiya, chahe woh "transformer
 
 ---
 
+## D015 — ERGAS outlier diagnosed: near-zero-reflectance band, not a bug; now reporting median too
+**Date:** 2026-09-08
+**Decision:** Investigate kiya ki bicubic baseline ke ERGAS ka std (55.16) itna zyada kyun tha apne mean (15.57) se. Poore val split (279 pairs) par per-patch ERGAS sort karke dekha: `ROI_05939` = 771.5 (baaki sab 2.5-58 range mein, median 11.66). Us patch ke HR band means dekhe: band index 2 ka mean sirf 0.0075 tha (0-1 normalized scale par, matlab bahut low reflectance — likely water body ya shadow). ERGAS formula `100 * ratio * sqrt(mean((RMSE_band/mean_band)²))` hai — near-zero mean_band ek modest RMSE ko bhi drastically amplify kar deta hai us band ke liye, aur woh akela poore patch ke ERGAS ko dominate kar deta hai.
+
+Fix: `run_baseline.py` aur `evaluate_checkpoint.py` dono ab median bhi print karte hain ERGAS ke liye (mean ke saath), kyunki mean is known ERGAS limitation ke against robust nahi hai.
+**Reasoning:** Yeh ek documented, well-known ERGAS weakness hai remote-sensing literature mein (low-reflectance regions, especially water, denominator explode karte hain) — code mein koi bug nahi tha. Median report karna standard practice hai isi wajah se. Single outlier ka contribution itna bada hai ki woh akela poore 279-sample std ko explain kar deta hai — baaki distribution genuinely well-behaved hai.
+**Alternatives considered:** Us specific ROI ko dataset se exclude/filter karna — abhi ke liye reject kiya, kyunki woh genuine real data hai (dataset ka hissa hona chahiye), sirf reporting robust honi chahiye, data cherry-pick nahi karna.
+**Status:** Accepted. Open Consideration resolved.
+
+---
+
+## D016 — Phase 6: single-pass heteroscedastic uncertainty (not MC-ensemble), with a real gradient-explosion bug caught in smoke testing
+**Date:** 2026-09-08
+**Decision:** Uncertainty estimation ke liye single-pass heteroscedastic head implement kiya (`ml/uncertainty/heteroscedastic.py`) — EDSR ko `out_channels=8` diya (4 mean + 4 log-variance), Gaussian NLL loss (`nn.GaussianNLLLoss`) se train kiya. PRD ka suggested MC-ensemble (5x forward pass, multiple models) use nahi kiya.
+**Reasoning:** MC-ensemble ek forward pass ki jagah 5x compute maangta — Colab T4 (free tier) ke limited GPU-hours budget mein yeh costly hai, especially jab hume already EDSR/SwinIR/ablation ke liye multiple 20-epoch runs chahiye. Single-pass heteroscedastic head ek hi forward pass mein SR image + confidence map dono deta hai.
+
+**Real bug caught during smoke testing**: Jab main pehle 2-example overfit test kiya lr=1e-2 (jo EDSR/SwinIR ke liye kaam kiya tha) par, training completely diverge ho gayi — loss aur gradient norm dono lakhon tak explode ho gaye (grad_norm 1e8+ tak), reconstruction error 160,000+ tak. Yeh Gaussian NLL loss ka known instability hai (Kendall & Gal, 2017): model predicted variance ko error se zyada fast shrink kar sakta hai, jisse `(error)²/variance` term explode karta hai, jo phir poore model (mean prediction sahit) ko destabilize kar deta hai — plain L1 loss jaisa forgiving nahi hai.
+
+Diagnosis: script ka actual default lr=1e-4 par retest kiya (1e-2 sirf meri quick-debug choice thi, production default nahi) — training stable nikli (loss 0.14→-1.48 smoothly, grad_norm bounded 0.36-7.5, recon error 0.50→0.12). Toh yeh fundamentally broken nahi tha, lekin itni violently diverge hone ki capability dekh kar, defensive measure zaroori laga: `torch.nn.utils.clip_grad_norm_(max_norm=5.0)` add kiya training loop mein, taaki full-scale Colab run mein koi ek bad batch bhi poori training session waste na kare.
+**Alternatives considered:** MC-ensemble (PRD ka suggestion) — reject kiya, compute cost ki wajah se (upar reasoning). Warm-start karna (pehle plain-L1 model train karke, phir uncertainty head ke liye fine-tune karna, jo standard practice hai NLL instability avoid karne ke liye) — abhi ke liye add nahi kiya kyunki lr=1e-4 par already stable tha; agar Colab par full-scale run mein bhi instability dikhe to yeh next fix hoga.
+**Status:** Accepted. Local smoke-tested (shape check + overfit sanity check + full script run). Colab GPU run pending (user action).
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.
@@ -192,6 +216,7 @@ Numbers fabricate nahi kiye — jo mila wahi report kiya, chahe woh "transformer
 - **Backend infra scope for MVP demo**: PostGIS/Redis/Celery vs simpler synchronous/local-storage approach — team ki compute/timeline availability dekh kar decide karna hai.
 - **Perceptual loss**: DINOv3 vs standard VGG-based perceptual loss — DINOv3 optional/stretch goal hai per PRD khud bhi.
 - **Nodata handling refinement**: Abhi LR nodata pixels ko 0 se replace kiya ja raha hai (D007). Agar training mein edge artifacts dikhein, to proper masking (loss se exclude karna) ya un ROIs ko filter karna consider karna hoga jinme nodata fraction zyada hai.
-- **ERGAS outlier investigation** (from D011): std (55.16) mean (15.57) se bahut zyada hai. Kuch specific ROIs identify karne hain jinka per-band ERGAS contribution abnormally high hai (likely low-mean reference band wale patches) — dekhna hai ki yeh genuine hard cases hain ya metric ka edge case (near-zero denominator). SwinIR mein bhi same pattern dikha (std 51.32 vs mean 14.56) — confirms yeh dataset/metric-level issue hai, model-specific nahi.
+- ~~**ERGAS outlier investigation**~~ **RESOLVED (D015)**: `ROI_05939` ka ek band (index 2) ka mean sirf 0.0075 hai (likely water/shadow, near-zero reflectance) — ERGAS formula `(RMSE/mean)²` hai per band, to near-zero denominator ek hi patch ka ERGAS 771.5 tak blow-up kar deta hai (median 11.66 ke against). Yeh ERGAS metric ki ek known limitation hai low-reflectance regions ke liye, code bug nahi. Fix: `run_baseline.py`/`evaluate_checkpoint.py` ab median bhi print karte hain mean ke saath, kyunki mean is tarah ke outliers ke against robust nahi hai.
 - **Scale SwinIR to match EDSR's parameter count** (from D013): Abhi SwinIR 2.2x chhota hai phir bhi tied hai. Bigger embed_dim ya deeper RSTBs try karna chahiye ek fairer max-capacity comparison ke liye, before final "which architecture wins" call lena.
 - **Tune λ_spectral / λ_edge** (from D014): 0.1/0.1 sirf ek starting guess hai. Pehla ablation result dekhne ke baad (better/worse/same), agar promising lage to proper sweep (jaise 0.05/0.1/0.5/1.0) karna chahiye final numbers ke liye.
+- **Uncertainty warm-start** (from D016): Agar Colab par full-scale (2,283 pairs, 20 epochs) heteroscedastic training mein bhi instability dikhe (jo local 2-example test mein nahi dikha lr=1e-4 par, lekin bigger scale par naye patterns emerge ho sakte hain), to warm-start approach try karna — pehle plain-L1 EDSR se weights load karke, phir NLL ke saath fine-tune karna.

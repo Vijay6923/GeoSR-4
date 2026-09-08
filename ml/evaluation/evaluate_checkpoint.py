@@ -62,7 +62,7 @@ def main():
     print(f"PSNR   {np.mean(results['psnr']):.2f} dB  (std {np.std(results['psnr']):.2f})")
     print(f"SSIM   {np.mean(results['ssim']):.4f}  (std {np.std(results['ssim']):.4f})")
     print(f"SAM    {np.mean(results['sam']):.2f}°  (std {np.std(results['sam']):.2f})")
-    print(f"ERGAS  {np.mean(results['ergas']):.2f}  (std {np.std(results['ergas']):.2f})")
+    print(f"ERGAS  {np.mean(results['ergas']):.2f}  (median {np.median(results['ergas']):.2f}, std {np.std(results['ergas']):.2f})")
 
 
 if __name__ == "__main__":

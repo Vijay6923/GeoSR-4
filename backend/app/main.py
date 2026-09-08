@@ -9,6 +9,7 @@ Run from the repo root: uvicorn backend.app.main:app --reload
 import base64
 import io
 import sys
+from typing import Optional
 import numpy as np
 import rasterio
 import torch
@@ -17,8 +18,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from rasterio.io import MemoryFile
 
 sys.path.insert(0, ".")
-from ml.datasets.sen2naip import load_norm_stats
+from ml.datasets.sen2naip import load_norm_stats, _normalize
 from ml.inference.infer_scene import build_model, run_sr_inference, SCALE_FACTOR
+from ml.evaluation.metrics import compute_all_metrics
 from geospatial.geotiff.export import write_sr_geotiff
 from ml.inference.visualize_demo import to_rgb_display
 
@@ -58,8 +60,19 @@ def _png_base64(rgb_array: np.ndarray) -> str:
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
+def _read_geotiff_bytes(raw: bytes, label: str):
+    try:
+        with MemoryFile(raw) as memfile, memfile.open() as src:
+            arr = src.read().astype(np.float32)
+            if src.nodata is not None:
+                arr[arr == src.nodata] = 0.0
+            return arr, src.transform, src.crs
+    except rasterio.errors.RasterioIOError:
+        raise HTTPException(400, f"could not read {label} as a GeoTIFF")
+
+
 @app.post("/api/infer")
-async def infer(file: UploadFile = File(...)):
+async def infer(file: UploadFile = File(...), hr_reference: Optional[UploadFile] = File(None)):
     if not file.filename.lower().endswith((".tif", ".tiff")):
         raise HTTPException(400, "file must be a GeoTIFF (.tif/.tiff)")
 
@@ -67,16 +80,7 @@ async def infer(file: UploadFile = File(...)):
     if len(raw) > MAX_UPLOAD_BYTES:
         raise HTTPException(400, f"file too large (max {MAX_UPLOAD_BYTES // (1024*1024)} MB for this demo)")
 
-    try:
-        with MemoryFile(raw) as memfile, memfile.open() as src:
-            scene = src.read().astype(np.float32)
-            if src.nodata is not None:
-                scene[scene == src.nodata] = 0.0
-            src_transform = src.transform
-            src_crs = src.crs
-    except rasterio.errors.RasterioIOError:
-        raise HTTPException(400, "could not read file as a GeoTIFF")
-
+    scene, src_transform, src_crs = _read_geotiff_bytes(raw, "the input file")
     if scene.shape[0] != 4:
         raise HTTPException(400, f"expected 4 bands (R,G,B,NIR), got {scene.shape[0]}")
 
@@ -84,6 +88,23 @@ async def infer(file: UploadFile = File(...)):
         _state["model"], scene, TILE_SIZE, OVERLAP, DEVICE,
         _state["lr_ranges"], _state["hr_ranges"], uncertainty=False,
     )
+
+    # Metrics need a ground-truth HR reference -- only computed if the user
+    # provided one (e.g. a dataset hr.tif). Never fabricated otherwise.
+    metrics = None
+    if hr_reference is not None:
+        hr_raw = await hr_reference.read()
+        hr_arr, _, _ = _read_geotiff_bytes(hr_raw, "the ground-truth reference")
+        if hr_arr.shape != sr_scene.shape:
+            raise HTTPException(
+                400,
+                f"ground-truth reference shape {list(hr_arr.shape)} doesn't match "
+                f"the SR output shape {list(sr_scene.shape)} -- must be the matching "
+                f"{SCALE_FACTOR}x-resolution reference for this exact input",
+            )
+        sr_norm = _normalize(sr_scene, _state["hr_ranges"])  # invert sr_scene's own denormalization
+        hr_norm = _normalize(hr_arr, _state["hr_ranges"])
+        metrics = compute_all_metrics(sr_norm, hr_norm)
 
     with MemoryFile() as memfile:
         write_sr_geotiff(memfile.name, sr_scene, src_transform, src_crs, SCALE_FACTOR)
@@ -100,6 +121,7 @@ async def infer(file: UploadFile = File(...)):
         "output_shape": list(sr_scene.shape),
         "input_resolution_m": 10.0,
         "output_resolution_m": 10.0 / SCALE_FACTOR,
+        "metrics": metrics,
     }
 
 

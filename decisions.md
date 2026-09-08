@@ -342,6 +342,18 @@ Teen fixes ek saath kiye:
 
 ---
 
+## D027 — Accuracy metrics in the UI: only computed when a ground-truth reference is provided, never fabricated
+**Date:** 2026-09-08
+**Decision:** User ne poocha "kis extent tak image sahi hai" dikhana chahte the. PSNR/SSIM/SAM/ERGAS sab ko ek ground-truth HR reference chahiye compare karne ke liye — real-world upload (koi reference nahi) ke liye yeh genuinely compute nahi ho sakte. Isliye `POST /api/infer` mein ek optional dusra file field add kiya (`hr_reference`) — agar diya gaya, real metrics compute karke return karte hain; nahi diya to `metrics: null`, UI mein saaf keh deta hai "reference nahi diya, metrics available nahi hain" — kabhi bhi fabricate nahi karte.
+
+Metrics computation: SR output (jo already denormalized/physical-scale hai response ke liye) ko `_normalize()` se wapas [0,1] mein convert kiya (D008 ka wahi hr_ranges reuse kiya), reference ko bhi same normalize kiya, phir `compute_all_metrics()` (already-tested `ml/evaluation/metrics.py`) call kiya — bilkul wahi normalization jo training/eval mein har jagah use hoti hai, koi naya ad-hoc scale nahi banaya.
+**Verification**: Real LR/HR pair (ROI_0057) upload kiya curl se, poore proxy path (5173→8000) ke through — metrics mile (PSNR 16.73, SSIM 0.196, SAM 15.49°, ERGAS 13.76). SSIM thoda low laga (val-set average ~0.43 se), to cross-check kiya `ml/evaluation/evaluate_checkpoint.py` ka trusted code path use karke isi exact image par — **exact same numbers** aaye (floating-point tak match) — confirm hua ki backend ka metrics wiring sahi hai, low SSIM genuine hai (yeh road/building-heavy patch hai, jahan exact edge-alignment SSIM ko zyada punish karta hai, jo visually bhi consistent hai jo pehle dekha tha). Do edge cases bhi test kiye: (1) reference na diya → `metrics: null`, koi crash nahi; (2) mismatched-shape reference diya → clean 400 error with clear message, crash nahi.
+**Reasoning:** Yeh poore project ka core ethos hai (PRD Section 14: "never put fabricated numbers") — real-world deployment mein reference nahi milega, to honestly "unavailable" dikhana zaroori tha fake confidence dikhane ki jagah.
+**Alternatives considered:** Uncertainty-model (D016/D018) se confidence map dikhana (jisko ground truth ki zaroorat nahi) — abhi ke liye reject kiya kyunki backend abhi SwinIR serve karta hai (best visual quality ke liye, D020), aur uncertainty-trained EDSR checkpoint ka real Colab run abhi tak nahi hua (Open Considerations mein already tracked). Future improvement ke roop mein note kiya.
+**Status:** Accepted. Backend + frontend dono verified end-to-end.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.

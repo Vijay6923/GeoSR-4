@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import BeforeAfterSlider from './components/BeforeAfterSlider'
+import MetricsPanel from './components/MetricsPanel'
 
 interface InferResponse {
   input_preview_png: string
@@ -9,10 +10,12 @@ interface InferResponse {
   output_shape: number[]
   input_resolution_m: number
   output_resolution_m: number
+  metrics: { psnr: number; ssim: number; sam: number; ergas: number } | null
 }
 
 function App() {
   const [file, setFile] = useState<File | null>(null)
+  const [hrFile, setHrFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<InferResponse | null>(null)
@@ -23,6 +26,10 @@ function App() {
     setError(null)
   }
 
+  const handleHrFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setHrFile(e.target.files?.[0] ?? null)
+  }
+
   const handleUpload = async () => {
     if (!file) return
     setLoading(true)
@@ -31,6 +38,7 @@ function App() {
 
     const formData = new FormData()
     formData.append('file', file)
+    if (hrFile) formData.append('hr_reference', hrFile)
 
     try {
       const res = await fetch('/api/infer', { method: 'POST', body: formData })
@@ -88,6 +96,23 @@ function App() {
               {loading ? 'Processing…' : 'Generate SR'}
             </button>
           </div>
+
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <label className="block text-sm font-medium text-slate-700">
+              Ground-truth reference (optional, for accuracy metrics)
+            </label>
+            <p className="mt-0.5 text-xs text-slate-400">
+              PSNR/SSIM/SAM/ERGAS need something to compare against -- without a reference we won't show numbers we
+              can't back up.
+            </p>
+            <input
+              type="file"
+              accept=".tif,.tiff"
+              onChange={handleHrFileChange}
+              className="mt-2 block text-sm text-slate-600 file:mr-4 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200"
+            />
+          </div>
+
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
         </div>
 
@@ -113,6 +138,16 @@ function App() {
               afterLabel={`GeoSR-4 Output (${result.output_resolution_m}m)`}
             />
             <p className="mt-2 text-center text-xs text-slate-400">Drag the handle to compare</p>
+
+            <div className="mt-6">
+              {result.metrics ? (
+                <MetricsPanel metrics={result.metrics} />
+              ) : (
+                <p className="text-center text-sm text-slate-400">
+                  No ground-truth reference provided -- accuracy metrics unavailable for this image.
+                </p>
+              )}
+            </div>
           </div>
         )}
       </main>

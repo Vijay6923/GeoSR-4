@@ -11,7 +11,7 @@ export default function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel, af
   const [pos, setPos] = useState(50) // percent, 0 = all "after", 100 = all "before"
 
   return (
-    <div className="relative w-full select-none overflow-hidden rounded-md border border-slate-200">
+    <div className="relative w-full select-none overflow-hidden rounded-lg border border-slate-200 shadow-sm">
       {/* base layer: after (SR output), fills the whole container */}
       <img src={afterSrc} alt={afterLabel} className="block w-full" draggable={false} />
 
@@ -22,21 +22,21 @@ export default function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel, af
 
       {/* divider line + handle, purely visual */}
       <div
-        className="pointer-events-none absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.3)]"
+        className="pointer-events-none absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.4)]"
         style={{ left: `${pos}%` }}
       >
-        <div className="absolute top-1/2 left-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white shadow-md">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <div className="absolute top-1/2 left-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-slate-600 shadow-lg ring-1 ring-black/5">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M8 6l-6 6 6 6M16 6l6 6-6 6" />
           </svg>
         </div>
       </div>
 
       {/* labels */}
-      <div className="pointer-events-none absolute top-2 left-2 rounded bg-black/60 px-2 py-0.5 text-xs font-medium text-white">
+      <div className="pointer-events-none absolute top-3 left-3 rounded-md bg-black/55 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
         {beforeLabel}
       </div>
-      <div className="pointer-events-none absolute top-2 right-2 rounded bg-black/60 px-2 py-0.5 text-xs font-medium text-white">
+      <div className="pointer-events-none absolute top-3 right-3 rounded-md bg-emerald-600/85 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
         {afterLabel}
       </div>
 

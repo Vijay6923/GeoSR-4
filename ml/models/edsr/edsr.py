@@ -7,6 +7,8 @@ hurts SR quality. 4x upsampling via two PixelShuffle(2) stages.
 import torch
 import torch.nn as nn
 
+from ml.models.upsample import UpsampleBlock
+
 
 class ResidualBlock(nn.Module):
     def __init__(self, n_channels):
@@ -17,18 +19,6 @@ class ResidualBlock(nn.Module):
 
     def forward(self, x):
         return x + self.conv2(self.relu(self.conv1(x)))
-
-
-class UpsampleBlock(nn.Module):
-    """One 2x upsample via sub-pixel convolution."""
-
-    def __init__(self, n_channels):
-        super().__init__()
-        self.conv = nn.Conv2d(n_channels, n_channels * 4, 3, padding=1)
-        self.shuffle = nn.PixelShuffle(2)
-
-    def forward(self, x):
-        return self.shuffle(self.conv(x))
 
 
 class EDSR(nn.Module):

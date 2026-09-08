@@ -1,5 +1,6 @@
 rasterio
 torch
+torchvision
 numpy
 huggingface_hub
 scikit-image

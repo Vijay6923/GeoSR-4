@@ -288,6 +288,25 @@ Reusability ke liye `infer_scene.py` ko refactor kiya: tiling/blending/inference
 
 ---
 
+## D023 — Quality push for the demo: VGG perceptual loss + ICNR upsample fix, bundled together
+**Date:** 2026-09-08
+**Decision:** User ne dekha ki demo output ka visual improvement subtle tha, aur explicitly kaha "evaluator ko clearly change dikhna chahiye." Do changes ek saath kiye (normally alag-alag ablation test karte, lekin time-constraint ki wajah se bundle kiya, honestly yahan note kar raha hun):
+
+1. **VGG perceptual loss** (`ml/losses/perceptual.py`) — pretrained VGG16 (ImageNet) ke relu3_3-tak features se SR aur HR compare karte hain (sirf RGB bands, NIR drop kiya — PRD Section 36 ka apna hint follow kiya). L1/pixel loss known-blur produce karta hai (SRGAN/ESRGAN literature se well-established) kyunki woh statistically "average plausible output" reward karta hai; perceptual loss high-level features match karke sharper/zyada realistic-looking output push karta hai.
+2. **ICNR weight initialization** (`ml/models/upsample.py`) — dono EDSR aur SwinIR ka duplicate `UpsampleBlock` class ek shared module mein refactor kiya, aur usme ICNR init add kiya, jo D020 ke checkerboard/ripple artifact ko fix karta hai (PixelShuffle ke pre-shuffle conv weights ko is tarah initialize karta hai ki sab r² sub-pixel positions same kernel se start hon, matlab init ke time upsample nearest-neighbor jaisa clean ho, random-per-position nahi).
+
+**Verification** (dono changes ke liye):
+- ICNR: pehle test kiya without bias-fix — FAIL hua (2x2 output patch uniform nahi tha, std=0.084). Root cause dhoonda: `nn.Conv2d` ka default bias independently random hota hai per-channel, sirf weight equalize karna kaafi nahi tha. Bias bhi equalize kiya, phir verify kiya — ab poori tarah uniform (std=0.0 exactly, sab channels/patches mein).
+- ICNR + refactor ke baad EDSR/SwinIR dono ka overfit sanity check phir se chalaya (D009/D012 jaisa) — pehle EDSR ka 60-step short test noisy dikha (lag raha tha regression hai), lekin full 150-step test (jo exact D009 protocol match karta hai) confirm kiya ki convergence healthy hai (final loss 0.102, D009 ke original 0.101 ke barabar) — short test sirf normal early-training noise pakड़ raha tha, real regression nahi tha.
+- Perceptual loss: local overfit test (30 steps, combined L1+perceptual) — loss 0.55→0.20, gradient norm 11→1.8 (shrinking, healthy), koi NaN/explosion nahi. Full training script bhi smoke-test kiya end-to-end.
+- SSL cert issue mila VGG16 download karte waqt (macOS python.org install ka known issue, certifi bundle use nahi ho raha tha by default) — `SSL_CERT_FILE` env var se fix kiya. Colab par yeh issue nahi aayega (proper certs already hain).
+
+**Reasoning:** λ_perceptual=0.01 sirf ek starting guess hai (D014/D019 jaisa pattern — untuned, tuning baad mein). SwinIR ko target model banaya (D020 ke mutabik, demo ke liye already chosen).
+**Alternatives considered:** Har change ko alag Colab run mein isolate karke test karna (proper ablation discipline) — reject kiya time-constraint ki wajah se; user ka immediate need ek visibly-better demo tha, do separate ~40-min Colab runs ki jagah ek run mein dono improvements bundle karna zyada practical tha. Yeh trade-off explicitly yahan document kar raha hun taaki baad mein pata rahe ki in do changes ka individual contribution isolate nahi kiya gaya.
+**Status:** Accepted, local verification complete. Colab training run pending (user action).
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.

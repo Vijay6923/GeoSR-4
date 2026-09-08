@@ -11,6 +11,8 @@ gradients during training.
 import torch
 import torch.nn as nn
 
+from ml.models.upsample import UpsampleBlock
+
 
 def window_partition(x, window_size):
     B, H, W, C = x.shape
@@ -136,16 +138,6 @@ class RSTB(nn.Module):
         B, L, C = x.shape
         x = self.conv(x.transpose(1, 2).view(B, C, H, W)).flatten(2).transpose(1, 2)
         return shortcut + x
-
-
-class UpsampleBlock(nn.Module):
-    def __init__(self, n_channels):
-        super().__init__()
-        self.conv = nn.Conv2d(n_channels, n_channels * 4, 3, padding=1)
-        self.shuffle = nn.PixelShuffle(2)
-
-    def forward(self, x):
-        return self.shuffle(self.conv(x))
 
 
 class SwinIR(nn.Module):

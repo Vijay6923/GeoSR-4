@@ -16,6 +16,7 @@ from ml.models.swinir.swinir import SwinIR
 from ml.evaluation.metrics import compute_all_metrics
 from ml.losses.spectral import SpectralAngleLoss
 from ml.losses.edge import EdgeLoss
+from ml.losses.perceptual import VGGPerceptualLoss
 
 ROOT = "ml/datasets/raw/sen2naip/cross-sensor/extracted/cross-sensor"
 
@@ -35,6 +36,7 @@ def parse_args():
     p.add_argument("--log-every", type=int, default=10)
     p.add_argument("--lambda-spectral", type=float, default=0.0, help="PRD section 34-35, 0 = L1 only (baseline)")
     p.add_argument("--lambda-edge", type=float, default=0.0, help="PRD section 37, 0 = L1 only (baseline)")
+    p.add_argument("--lambda-perceptual", type=float, default=0.0, help="PRD section 36, VGG perceptual loss -- see decisions.md D023")
     return p.parse_args()
 
 
@@ -75,8 +77,9 @@ def main():
     l1_loss = nn.L1Loss()
     spectral_loss = SpectralAngleLoss().to(args.device)
     edge_loss = EdgeLoss().to(args.device)
+    perceptual_loss = VGGPerceptualLoss().to(args.device) if args.lambda_perceptual > 0 else None
 
-    print(f"loss: L1 + {args.lambda_spectral} * spectral + {args.lambda_edge} * edge")
+    print(f"loss: L1 + {args.lambda_spectral} * spectral + {args.lambda_edge} * edge + {args.lambda_perceptual} * perceptual")
 
     os.makedirs(args.checkpoint_dir, exist_ok=True)
 
@@ -93,6 +96,8 @@ def main():
                 loss = loss + args.lambda_spectral * spectral_loss(sr, hr)
             if args.lambda_edge > 0:
                 loss = loss + args.lambda_edge * edge_loss(sr, hr)
+            if perceptual_loss is not None:
+                loss = loss + args.lambda_perceptual * perceptual_loss(sr, hr)
 
             optimizer.zero_grad()
             loss.backward()

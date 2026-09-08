@@ -253,6 +253,19 @@ Note: is Colab run mein `evaluate_checkpoint.py` ka purana version chal raha tha
 
 ---
 
+## D020 — First local end-to-end demo: SwinIR chosen over EDSR (visibly better despite tied metrics)
+**Date:** 2026-09-08
+**Decision:** Real trained checkpoints (`experiments/edsr/edsr_epoch19.pt`, `experiments/swinir/swinir_epoch19.pt`, dono Colab se download kiye) ko local machine par `infer_scene.py` se run kiya, ek held-out validation patch (`ROI_0045`, training mein kabhi nahi dikha) par, `visualize_demo.py` se side-by-side comparison banaya (LR input | SR output | ground truth NAIP).
+
+Dono model ka output visually inspect kiya: **EDSR** ka output ek strong diagonal ripple/moiré texture artifact dikhata hai poore image mein, jo ground truth mein bilkul nahi hai. **SwinIR** ka output isse kaafi behtar hai — colors ground truth se match karte hain (asli green canopy, EDSR ke grey-purple wash ke against), overall structure/shapes sahi hain, aur artifact bhi present hai lekin bahut halka (light checkerboard-jaisa texture, severe ripple nahi).
+
+Isliye demo ke liye **SwinIR checkpoint use kiya**, EDSR nahi — chahe D013 mein dono roughly metric-tied the (PSNR/SAM), visual quality mein clear difference hai. Yeh important insight hai: **raw PSNR/SSIM tie hone ka matlab equal perceptual quality nahi hai**.
+**Reasoning:** Artifact ka likely cause: PixelShuffle-based sub-pixel convolution upsampling (dono EDSR aur SwinIR isi `UpsampleBlock` class ko reuse karte hain) — yeh well-documented checkerboard/ripple artifact produce karta hai jab tak pre-shuffle conv layer ko specifically initialize na kiya jaaye (ICNR initialization, ya post-shuffle blur layer add karke). Abhi humne yeh nahi kiya — standard random init use kiya.
+**Alternatives considered:** Artifact ko fix karne ki koshish karna abhi hi (ICNR init add karna, retrain karna) — reject kiya for now, kyunki user ka immediate priority "aaj demo dikhana" tha, aur SwinIR ka output already demo-presentable hai. ICNR fix Open Considerations mein track kiya gaya hai future refinement ke liye.
+**Status:** Accepted. Local demo working end-to-end: real Sentinel-2-scale input → real <4m (2.5m) SR output, geospatially correct, visually reasonable. Saved to `experiments/demo/` (gitignored, local only).
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.
@@ -267,3 +280,4 @@ Note: is Colab run mein `evaluate_checkpoint.py` ka purana version chal raha tha
 - ~~**SwinIR tiled inference**~~ **RESOLVED (D018)**.
 - ~~**Uncertainty map GeoTIFF output**~~ **RESOLVED (D018)**.
 - **Uncertainty calibration on a real-trained checkpoint** (from D018): Abhi tak sirf 4-step smoke-test checkpoint se test hua hai (expected-bad numbers). Colab ke actual 20-epoch uncertainty run ke baad, `uncertainty_calibration()` (D016) ka real number dekhna hai — kya std genuinely error se correlate karta hai.
+- **PixelShuffle checkerboard artifact fix** (from D020): ICNR weight initialization ya post-shuffle blur layer add karna `UpsampleBlock` mein (EDSR aur SwinIR dono use karte hain), taaki visible ripple/checkerboard texture kam ho. Demo-presentable hai abhi ke liye, lekin production-quality ke liye fix karna chahiye.

@@ -28,6 +28,29 @@ tests/
 docker/
 ```
 
+## Local demo
+
+Once you have a trained checkpoint (e.g. `experiments/swinir/swinir_epoch19.pt`, downloaded from a Colab training run -- see the notebooks):
+
+```bash
+# 1. Run the model over an LR GeoTIFF, producing an SR GeoTIFF
+python ml/inference/infer_scene.py \
+  --input path/to/input_lr.tif \
+  --output path/to/output_sr.tif \
+  --checkpoint experiments/swinir/swinir_epoch19.pt \
+  --model-type swinir --embed-dim 60 --depths 2,2,2,2 --num-heads 6 --window-size 11 \
+  --tile-size 121 --overlap 16
+
+# 2. Visualize LR vs SR vs ground truth (if available) side by side
+python ml/inference/visualize_demo.py \
+  --lr path/to/input_lr.tif \
+  --sr path/to/output_sr.tif \
+  --hr path/to/ground_truth_hr.tif \
+  --output demo_comparison.png
+```
+
+See `decisions.md` D020 for why SwinIR (not EDSR) was chosen for the demo, and a known checkerboard-texture artifact from PixelShuffle upsampling that's flagged for a future fix, not yet resolved.
+
 ## Dataset
 
 Training/validation data is [`isp-uv-es/SEN2NAIP`](https://huggingface.co/datasets/isp-uv-es/SEN2NAIP) (CC-BY-4.0). The raw zip is not committed to this repo (too large, easily reproducible). To fetch the cross-sensor split used so far:

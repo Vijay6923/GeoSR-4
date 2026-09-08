@@ -27,7 +27,7 @@ from ml.inference.visualize_demo import to_rgb_display
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB -- fine for demo-size patches, not full scenes (see D021)
 TILE_SIZE = 121
 OVERLAP = 16
-CHECKPOINT_PATH = "experiments/swinir/swinir_epoch19.pt"  # D020: SwinIR chosen for visual quality
+CHECKPOINT_PATH = "experiments/swinir_quality/swinir_epoch29.pt"  # D029: perceptual+ICNR, visibly sharper texture
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 app = FastAPI(title="GeoSR-4 API")

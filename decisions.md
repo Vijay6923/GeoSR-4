@@ -370,6 +370,19 @@ Metrics computation: SR output (jo already denormalized/physical-scale hai respo
 
 ---
 
+## D029 — Visual verification: perceptual+ICNR checkpoint is genuinely sharper, backend switched to it
+**Date:** 2026-09-08
+**Decision:** `experiments/swinir_quality/swinir_epoch29.pt` (D023-D025) ko real demo patch (`ROI_0057`) par run kiya, ek zoomed crop (flat/uniform region, jahan texture difference sabse clearly dikhta hai) mein old plain-L1 SwinIR se directly compare kiya. Result: **clear, visually obvious improvement** — old checkpoint smooth/blobby low-frequency texture deta tha (bade soft dark blobs, koi fine detail nahi), naya checkpoint genuine fine-grained texture deta hai jo ground truth ke actual canopy-texture pattern se structurally milta hai. Yeh subtle nahi tha — direct crop comparison mein turant dikh gaya.
+
+Important observation: full-val-set PSNR/SSIM D028 mein roughly flat/wash the (16.92→16.83 dB, 0.429→0.437) — matlab pixel-level metrics ne is real, visible texture improvement ko barely capture kiya. Yeh literature-consistent hai (perceptual loss texture/perceptual quality improve karta hai without necessarily moving PSNR/SSIM) aur ek genuinely useful talking point hai: **numbers na hilna iska matlab yeh nahi ki output same hai**.
+
+Backend ka `CHECKPOINT_PATH` update kiya naye checkpoint par point karne ke liye. Verify kiya: model load hua, poore proxy path (5173→8000) se real upload test kiya, metrics consistent aaye full-val average ke saath.
+**Reasoning:** Yeh exactly wahi cheez thi jo user ne originally maanga tha ("evaluator ko clearly change dikhna chahiye") — ab live demo mein genuinely behtar, visually sharper output serve ho raha hai, sirf metrics-pe-flat checkpoint nahi.
+**Alternatives considered:** D023 mein ICNR aur perceptual loss ko bundle kiya tha time-constraint ki wajah se — is result se individually attribute nahi kar sakte ki kis fix ne kitna contribute kiya, sirf combined effect verified hai. Future ablation (sirf ICNR, sirf perceptual, alag-alag) is open item hai agar precise attribution chahiye ho.
+**Status:** Accepted. Live backend/demo ab is behtar checkpoint se serve karta hai.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.
@@ -384,4 +397,5 @@ Metrics computation: SR output (jo already denormalized/physical-scale hai respo
 - ~~**SwinIR tiled inference**~~ **RESOLVED (D018)**.
 - ~~**Uncertainty map GeoTIFF output**~~ **RESOLVED (D018)**.
 - **Uncertainty calibration on a real-trained checkpoint** (from D018): Abhi tak sirf 4-step smoke-test checkpoint se test hua hai (expected-bad numbers). Colab ke actual 20-epoch uncertainty run ke baad, `uncertainty_calibration()` (D016) ka real number dekhna hai — kya std genuinely error se correlate karta hai.
-- **PixelShuffle checkerboard artifact fix** (from D020): ICNR weight initialization ya post-shuffle blur layer add karna `UpsampleBlock` mein (EDSR aur SwinIR dono use karte hain), taaki visible ripple/checkerboard texture kam ho. Demo-presentable hai abhi ke liye, lekin production-quality ke liye fix karna chahiye.
+- ~~**PixelShuffle checkerboard artifact fix**~~ **RESOLVED (D023-D025, verified D029)**.
+- **Isolate perceptual-loss vs ICNR-init contribution** (from D029): Dono ek saath bundle kiye the time-constraint ki wajah se. Agar precise attribution chahiye (kaun sa fix asli sharpness improvement de raha hai), do alag Colab runs chahiye — abhi combined effect hi verified hai.

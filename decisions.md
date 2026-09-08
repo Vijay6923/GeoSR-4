@@ -138,6 +138,19 @@ PSNR/SSIM/SAM teeno decisively improve hue — yeh evidence hai ki learned model
 
 ---
 
+## D012 — Phase 4: SwinIR architecture choices (window_size=11, lightweight config)
+**Date:** 2026-09-08
+**Decision:** SwinIR implement kiya (`ml/models/swinir/swinir.py`) window-based self-attention ke saath — window_size=11, embed_dim=60, 4 RSTB blocks (har ek depth-2), 6 attention heads. Same L1-only, local-CPU-smoke-test → Colab-GPU-train workflow (D010) jo EDSR ke liye use hua.
+**Reasoning:**
+- window_size=11 specifically isliye chuna kyunki 121 (hamare LR patch ka height/width) = 11×11 exactly — is se koi input padding nahi chahiye. Yeh dataset-specific choice hai; agar future mein arbitrary-size Sentinel-2 scenes par tiled inference chalayenge (Phase 7), tab tile size ko window_size ka multiple rakhna hoga ya padding logic add karni hogi.
+- embed_dim=60 / depths=(2,2,2,2) / heads=6 ek "SwinIR-light" scale hai (original paper ke full-size model se chhota) — hackathon compute budget (Colab T4) ke hisaab se reasonable starting point, EDSR (16 blocks/64 channels, ~1.5M params) se roughly comparable capacity range mein.
+- EDSR ke D009 bug (training-time clamp gradient-kill) se seekh kar, is baar model likhne se pehle hi forward pass shape-check aur phir 2-example overfit sanity check kiya (before kisi bhi Colab compute use karne ke) — loss 0.58→0.11 (60 steps), gradient norm poore time healthy raha. Isse confirm hua ki window partition/reverse, shifted-window masking, relative position bias, aur RSTB residual connections sab sahi wire hue hain.
+- `evaluate_checkpoint.py` ko generalize kiya `--model-type` flag ke saath (edsr/swinir dono), taaki fair full-val-set comparison ek hi script se ho sake, code duplicate na ho.
+**Alternatives considered:** Full-size SwinIR (jaisa original paper mein, ~11M+ params, deeper RSTBs) — abhi ke liye reject kiya, PRD ke "Risk 6: Overengineering" ke mutabik; agar lightweight version promising results deta hai to scale up karna easy hoga.
+**Status:** Accepted. Local smoke test pass. Colab GPU training run pending (user action).
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.

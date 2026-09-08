@@ -12,16 +12,30 @@ from torch.utils.data import DataLoader
 sys.path.insert(0, ".")
 from ml.datasets.sen2naip import SEN2NAIPCrossSensor, tile_disjoint_split
 from ml.models.edsr.edsr import EDSR
+from ml.models.swinir.swinir import SwinIR
 from ml.evaluation.metrics import compute_all_metrics
 
 ROOT = "ml/datasets/raw/sen2naip/cross-sensor/extracted/cross-sensor"
 
 
+def build_model(args):
+    if args.model_type == "edsr":
+        return EDSR(n_channels=args.n_channels, n_blocks=args.n_blocks)
+    depths = tuple(int(d) for d in args.depths.split(","))
+    return SwinIR(embed_dim=args.embed_dim, depths=depths,
+                  num_heads=args.num_heads, window_size=args.window_size)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--checkpoint", type=str, required=True)
-    p.add_argument("--n-blocks", type=int, default=16)
-    p.add_argument("--n-channels", type=int, default=64)
+    p.add_argument("--model-type", type=str, choices=["edsr", "swinir"], default="edsr")
+    p.add_argument("--n-blocks", type=int, default=16, help="EDSR only")
+    p.add_argument("--n-channels", type=int, default=64, help="EDSR only")
+    p.add_argument("--embed-dim", type=int, default=60, help="SwinIR only")
+    p.add_argument("--depths", type=str, default="2,2,2,2", help="SwinIR only")
+    p.add_argument("--num-heads", type=int, default=6, help="SwinIR only")
+    p.add_argument("--window-size", type=int, default=11, help="SwinIR only")
     p.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     args = p.parse_args()
 
@@ -29,7 +43,7 @@ def main():
     val_ds = SEN2NAIPCrossSensor(splits["val"])
     loader = DataLoader(val_ds, batch_size=1, shuffle=False)
 
-    model = EDSR(n_channels=args.n_channels, n_blocks=args.n_blocks).to(args.device)
+    model = build_model(args).to(args.device)
     model.load_state_dict(torch.load(args.checkpoint, map_location=args.device))
     model.eval()
 

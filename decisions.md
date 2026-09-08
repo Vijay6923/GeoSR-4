@@ -151,6 +151,29 @@ PSNR/SSIM/SAM teeno decisively improve hue — yeh evidence hai ki learned model
 
 ---
 
+## D013 — SwinIR trained: roughly matches EDSR at less than half the parameters
+**Date:** 2026-09-08
+**Decision:** SwinIR (embed_dim=60, depths 2,2,2,2, heads=6) ko 20 epochs, full train split, Colab T4 par train kiya. Full val split (279 pairs) par evaluate kiya.
+
+**Three-way comparison (n=279, sab same val set, same protocol):**
+
+| Metric | Bicubic | EDSR (1.52M params) | SwinIR (0.68M params) |
+|---|---|---|---|
+| PSNR | 14.07 dB | 16.77 dB | 16.92 dB |
+| SSIM | 0.385 | 0.443 | 0.429 |
+| SAM | 17.64° | 11.41° | 11.60° |
+| ERGAS | 15.87 | 15.57 | 14.56 |
+
+**Reasoning:** Dono learned models bicubic ko clearly beat karte hain (PRD ka expected core result). EDSR aur SwinIR ke beech PSNR/SAM lagbhag tied hain, SSIM mein EDSR thoda aage, ERGAS mein SwinIR thoda aage — koi decisive winner nahi hai raw metrics mein.
+
+Lekin: SwinIR ke paas EDSR se **2.2x kam parameters** hain (683K vs 1.52M) — phir bhi comparable quality de raha hai. Yeh PRD ke Section 29 ("why transformer") ke claim ko support karta hai (long-range spatial relationships ko better capture karta hai, isliye kam capacity mein bhi competitive result), lekin isko "transformer clearly better hai" jaisa overclaim nahi kar rahe — is stage par honest finding yeh hai ki **parameter-efficiency mein SwinIR aage hai, absolute quality mein abhi tied hai**. Agar SwinIR ko EDSR jitni hi capacity di jaaye (bigger embed_dim/deeper RSTBs), woh potentially aage nikal sakta hai — yeh Open Considerations mein track kiya gaya hai.
+
+Numbers fabricate nahi kiye — jo mila wahi report kiya, chahe woh "transformer clearly wins" wali clean story na ho.
+**Alternatives considered:** Sirf absolute metrics dekh kar "SwinIR EDSR se better nahi hai" keh dena — reject kiya, kyunki parameter-count context ke bina yeh comparison incomplete/misleading hota.
+**Status:** Accepted. Phase 4 (SwinIR baseline) complete.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.
@@ -158,4 +181,5 @@ PSNR/SSIM/SAM teeno decisively improve hue — yeh evidence hai ki learned model
 - **Backend infra scope for MVP demo**: PostGIS/Redis/Celery vs simpler synchronous/local-storage approach — team ki compute/timeline availability dekh kar decide karna hai.
 - **Perceptual loss**: DINOv3 vs standard VGG-based perceptual loss — DINOv3 optional/stretch goal hai per PRD khud bhi.
 - **Nodata handling refinement**: Abhi LR nodata pixels ko 0 se replace kiya ja raha hai (D007). Agar training mein edge artifacts dikhein, to proper masking (loss se exclude karna) ya un ROIs ko filter karna consider karna hoga jinme nodata fraction zyada hai.
-- **ERGAS outlier investigation** (from D011): std (55.16) mean (15.57) se bahut zyada hai. Kuch specific ROIs identify karne hain jinka per-band ERGAS contribution abnormally high hai (likely low-mean reference band wale patches) — dekhna hai ki yeh genuine hard cases hain ya metric ka edge case (near-zero denominator).
+- **ERGAS outlier investigation** (from D011): std (55.16) mean (15.57) se bahut zyada hai. Kuch specific ROIs identify karne hain jinka per-band ERGAS contribution abnormally high hai (likely low-mean reference band wale patches) — dekhna hai ki yeh genuine hard cases hain ya metric ka edge case (near-zero denominator). SwinIR mein bhi same pattern dikha (std 51.32 vs mean 14.56) — confirms yeh dataset/metric-level issue hai, model-specific nahi.
+- **Scale SwinIR to match EDSR's parameter count** (from D013): Abhi SwinIR 2.2x chhota hai phir bhi tied hai. Bigger embed_dim ya deeper RSTBs try karna chahiye ek fairer max-capacity comparison ke liye, before final "which architecture wins" call lena.

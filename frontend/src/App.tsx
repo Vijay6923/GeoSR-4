@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import BeforeAfterSlider from './components/BeforeAfterSlider'
 
 interface InferResponse {
   input_preview_png: string
@@ -105,24 +106,13 @@ function App() {
                 Download GeoTIFF
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="mb-2 text-sm font-medium text-slate-700">Original ({result.input_resolution_m}m)</p>
-                <img
-                  src={`data:image/png;base64,${result.input_preview_png}`}
-                  alt="Original low-resolution input"
-                  className="w-full rounded-md border border-slate-200"
-                />
-              </div>
-              <div>
-                <p className="mb-2 text-sm font-medium text-slate-700">GeoSR-4 Output ({result.output_resolution_m}m)</p>
-                <img
-                  src={`data:image/png;base64,${result.output_preview_png}`}
-                  alt="Super-resolved output"
-                  className="w-full rounded-md border border-slate-200"
-                />
-              </div>
-            </div>
+            <BeforeAfterSlider
+              beforeSrc={`data:image/png;base64,${result.input_preview_png}`}
+              afterSrc={`data:image/png;base64,${result.output_preview_png}`}
+              beforeLabel={`Original (${result.input_resolution_m}m)`}
+              afterLabel={`GeoSR-4 Output (${result.output_resolution_m}m)`}
+            />
+            <p className="mt-2 text-center text-xs text-slate-400">Drag the handle to compare</p>
           </div>
         )}
       </main>

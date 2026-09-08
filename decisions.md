@@ -332,6 +332,16 @@ Teen fixes ek saath kiye:
 
 ---
 
+## D026 — Before/after slider (PRD section 12), native range input instead of a drag library
+**Date:** 2026-09-08
+**Decision:** `frontend/src/components/BeforeAfterSlider.tsx` — static side-by-side grid ki jagah ab ek draggable before/after slider hai. Implementation: SR output base layer ke roop mein full-size render hota hai, LR input CSS `clip-path: inset()` se left N% tak hi dikhta hai, aur ek invisible (`opacity-0`) native `<input type="range">` poore container par overlay hota hai jo drag position control karta hai. Visual divider line/handle sirf display ke liye hai (`pointer-events-none`), actual interaction native range input handle karta hai.
+**Reasoning:** Native `<input type="range">` use karne se drag/touch/keyboard sab automatically kaam karte hain (accessibility bhi free mein milti hai) — koi extra npm dependency (jaise react-compare-slider) nahi chahiye. Yeh existing "minimal dependencies" spirit (D022) ke saath consistent hai.
+**Verification**: `npm run build` clean pass hua (TypeScript errors nahi). Dev server (already running, HMR se changes live the) ke through proxy se real GeoTIFF upload karke confirm kiya ki backend integration abhi bhi kaam karta hai. Visual drag-behavior (slider actually smoothly move karta hai ya nahi) browser mein hi verify ho sakta hai — user ko check karne ke liye bola.
+**Alternatives considered:** Manual mousedown/mousemove/mouseup pointer-event handling likhna — reject kiya, native range input same result deta hai kam code aur better accessibility ke saath.
+**Status:** Accepted, build-verified. Visual behavior browser mein user confirm karega.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.

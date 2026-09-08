@@ -224,6 +224,15 @@ Verification (sirf "code likha, ho gaya" nahi bola):
 
 ---
 
+## D018 — infer_scene.py extended: SwinIR tiling + uncertainty dual-GeoTIFF output
+**Date:** 2026-09-08
+**Decision:** `ml/inference/infer_scene.py` ko generalize kiya — `--model-type` (edsr/swinir) aur `--uncertainty` flag add kiye. SwinIR ke liye tile_size ko window_size ka multiple hona chahiye (validate kiya, error deta hai agar nahi hai) — koi extra padding logic nahi chahiye thi kyunki `extract_tiles` already edge-padding kar deta hai poore scene ko tile_size ka multiple banane ke liye (D017 mein already implement tha). Uncertainty checkpoint ke liye mean aur log_var ko alag-alag blend kiya (`blend_tiles` dono baar call kiya), phir std ko `std_norm * (hi-lo)` se physical scale mein convert kiya (linear affine denormalization ke under, `Var(aX)=a²Var(X)` isliye `std(aX)=a·std(X)` — mathematically valid), aur ek dusra GeoTIFF likha uncertainty map ke liye.
+**Reasoning:** Dono naye code paths (`--model-type swinir`, `--uncertainty`) smoke test kiye tiny checkpoints se (jo phase 4/6 ke smoke tests se bache the). SwinIR path clean chala (16 tiles, 44x44, window_size=11 ka multiple). Uncertainty path bhi chala, dono GeoTIFF likhe gaye — lekin std values (104-168) bahut large the HR range (~42-200) ke against. Yeh check kiya aur confirm kiya ki yeh expected hai: checkpoint sirf 4 gradient steps trained tha (D016 ka smoke test), untrained network mein log_var≈0 hota hai (near-zero init), matlab var≈1, std≈1 in normalized [0,1] space — jo physical scale mein convert hone ke baad genuinely bahut bada dikhega. Yeh code bug nahi hai, balki mathematically expected behavior hai ek barely-trained model ke liye. Real calibration quality sirf Colab ke actual-trained uncertainty checkpoint se judge ho sakti hai.
+**Alternatives considered:** Dono model types ke liye alag-alag script rakhna (jaisa training scripts mein hai) — reject kiya kyunki inference orchestration logic (tile→infer→blend→denormalize→write) same hai dono ke liye, sirf model construction alag hai — is level ka parameterization (jaisa `evaluate_checkpoint.py` mein already hai) DRY rakhta hai bina overengineer kiye.
+**Status:** Accepted. Dono open items (SwinIR tiling, uncertainty GeoTIFF) close ho gaye.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.
@@ -235,5 +244,6 @@ Verification (sirf "code likha, ho gaya" nahi bola):
 - **Scale SwinIR to match EDSR's parameter count** (from D013): Abhi SwinIR 2.2x chhota hai phir bhi tied hai. Bigger embed_dim ya deeper RSTBs try karna chahiye ek fairer max-capacity comparison ke liye, before final "which architecture wins" call lena.
 - **Tune λ_spectral / λ_edge** (from D014): 0.1/0.1 sirf ek starting guess hai. Pehla ablation result dekhne ke baad (better/worse/same), agar promising lage to proper sweep (jaise 0.05/0.1/0.5/1.0) karna chahiye final numbers ke liye.
 - **Uncertainty warm-start** (from D016): Agar Colab par full-scale (2,283 pairs, 20 epochs) heteroscedastic training mein bhi instability dikhe (jo local 2-example test mein nahi dikha lr=1e-4 par, lekin bigger scale par naye patterns emerge ho sakte hain), to warm-start approach try karna — pehle plain-L1 EDSR se weights load karke, phir NLL ke saath fine-tune karna.
-- **SwinIR tiled inference** (from D017): `infer_scene.py` abhi sirf EDSR support karta hai. SwinIR ke liye tile_size ko window_size (11) ka multiple rakhna hoga, ya har tile ko pad/crop karna hoga.
-- **Uncertainty map GeoTIFF output** (from D017): Abhi `infer_scene.py` sirf SR image likhta hai. Uncertainty checkpoint (D016, out_channels=8) ke liye ek dusra output GeoTIFF (uncertainty map) bhi likhna chahiye, PRD ke dashboard vision (Section 13) ke mutabik.
+- ~~**SwinIR tiled inference**~~ **RESOLVED (D018)**.
+- ~~**Uncertainty map GeoTIFF output**~~ **RESOLVED (D018)**.
+- **Uncertainty calibration on a real-trained checkpoint** (from D018): Abhi tak sirf 4-step smoke-test checkpoint se test hua hai (expected-bad numbers). Colab ke actual 20-epoch uncertainty run ke baad, `uncertainty_calibration()` (D016) ka real number dekhna hai — kya std genuinely error se correlate karta hai.

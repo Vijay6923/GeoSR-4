@@ -307,6 +307,16 @@ Reusability ke liye `infer_scene.py` ko refactor kiya: tiling/blending/inference
 
 ---
 
+## D024 — Fixed CUDA OOM in VGG perceptual loss: resize to 224x224 before feature extraction
+**Date:** 2026-09-08
+**Decision:** Colab par D023 ka "quality run" (SwinIR + perceptual loss) chalaya to CUDA OOM crash hua step 0 par hi — T4 (14.56 GiB) already 14.49 GiB use kar raha tha (SwinIR + optimizer + batch_size=16 @ 484×484), aur VGG ka dual forward pass (pred with grad + target no_grad, dono 484×484×16-batch par) 458 MB aur maang raha tha jo available nahi tha. Fix: `VGGPerceptualLoss._prepare()` mein ab RGB images ko VGG feed karne se pehle 224×224 (VGG ka apna native ImageNet training resolution) tak `F.interpolate` (bilinear) se resize kar dete hain.
+**Reasoning:** 484×484 vs 224×224 = ~4.67x kam pixels — VGG ki poori conv stack mein activation memory proportionally kam ho jaata hai, jo is OOM (sirf 458MB short tha) ko comfortably cover karta hai. Bonus: VGG ke features actually 224px scale par hi trained/meaningful the — 484px par unbounded resolution feed karna already ek extra scale-mismatch tha (RGB-domain mismatch ke upar), to yeh fix sirf memory issue nahi, conceptually bhi zyada correct hai.
+**Verification**: Local CPU test (GPU nahi hai yahan, lekin shape/gradient-flow correctness check kiya) — combined L1+perceptual loss 20 steps chalaya, loss 1.15→0.29 decrease hua, gradient norm healthy (16.1→7.7, koi explosion nahi). Actual OOM-resolution sirf Colab GPU par verify ho sakta hai (memory ka exact accounting local CPU run mein nahi dikhta) — agla Colab run isko confirm karega.
+**Alternatives considered:** Batch size kam karna (16→8) instead of/along with resize — abhi ke liye sirf resize kiya (bada margin deta hai, ~4.67x), batch size same rakha taaki baseline SwinIR run (D013) ke saath directly comparable rahe (sirf loss function change ho, batch size nahi). Agar yeh bhi OOM de, batch size reduction next fallback hai.
+**Status:** Accepted, locally verified. Colab retry pending (user action) — koi checkpoint pehle attempt se bacha nahi (crash step 0 par hi hua tha), poora training run phir se chalana hoga.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.

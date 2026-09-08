@@ -15,11 +15,13 @@ ingest all Sentinel-2 bands.
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torchvision.models as tv_models
 
 IMAGENET_MEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
 IMAGENET_STD = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
 RGB_BANDS = (0, 1, 2)  # R,G,B out of R,G,B,NIR -- see decisions.md D006
+VGG_INPUT_SIZE = 224  # VGG's native ImageNet training resolution
 
 
 class VGGPerceptualLoss(nn.Module):
@@ -37,6 +39,11 @@ class VGGPerceptualLoss(nn.Module):
 
     def _prepare(self, x: torch.Tensor) -> torch.Tensor:
         rgb = x[:, list(RGB_BANDS), :, :]
+        # our SR output is 484x484 (121x121 LR * 4x) -- resizing down to VGG's
+        # native 224x224 avoids a CUDA OOM (dual 484x484x16-batch VGG forward
+        # passes blew a T4's 15GB) and keeps the input at the scale VGG's
+        # features were actually learned at (see decisions.md D024)
+        rgb = F.interpolate(rgb, size=(VGG_INPUT_SIZE, VGG_INPUT_SIZE), mode="bilinear", align_corners=False)
         return (rgb - self.mean) / self.std
 
     def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:

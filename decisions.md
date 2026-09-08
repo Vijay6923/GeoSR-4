@@ -117,6 +117,27 @@ Fix ke baad same 2-example overfit test: loss 0.60 → ~0.10 (150 steps mein), g
 
 ---
 
+## D011 — First real model-vs-baseline comparison: EDSR beats Bicubic on 3/4 metrics
+**Date:** 2026-09-08
+**Decision:** EDSR-baseline (16 blocks/64 channels) ko 20 epochs, full train split (2,283 pairs), Colab T4 GPU par train kiya. Full validation split (279 pairs, same protocol jo bicubic baseline ke liye use hua) par evaluate kiya `ml/evaluation/evaluate_checkpoint.py` se.
+
+**Result (n=279, dono same val set par):**
+
+| Metric | Bicubic | EDSR (epoch 19) | Change |
+|---|---|---|---|
+| PSNR | 14.07 dB | 16.77 dB | +2.70 dB |
+| SSIM | 0.385 | 0.443 | +0.058 |
+| SAM | 17.64° | 11.41° | -6.23° |
+| ERGAS | 15.87 | 15.57 | ~flat |
+
+**Reasoning:** Training ke dauraan per-epoch eval sirf 50 val samples par tha (speed ke liye) — usse directly bicubic (jo poore 279 pairs par tha) se compare karna unfair hota. Isliye final checkpoint ko poore val split par phir se evaluate kiya, taaki comparison genuinely apples-to-apples ho.
+
+PSNR/SSIM/SAM teeno decisively improve hue — yeh evidence hai ki learned model naive interpolation se better hai is cross-sensor task par bhi (jahan D008 mein dekha ki even bicubic ka baseline khud modest tha domain-gap ki wajah se). ERGAS flat raha — aur uska std (55.16) uske apne mean (15.57) se bahut zyada hai, jo suggest karta hai ki kuch outlier patches (shayad low-mean reference band wale, jahan ERGAS ka per-band RMSE/mean ratio explode karta hai) poore average ko skew kar rahe hain, na ki ERGAS genuinely uninformative hai.
+**Alternatives considered:** Sirf training ke dauraan ke 50-sample numbers ko final result maan lena — reject kiya, kyunki woh statistically kam reliable hai aur bicubic ke saath unfair comparison hota.
+**Status:** Accepted. Phase 3 (EDSR baseline) ka core result mil gaya. ERGAS outlier investigation Open Considerations mein add kiya.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.
@@ -124,3 +145,4 @@ Fix ke baad same 2-example overfit test: loss 0.60 → ~0.10 (150 steps mein), g
 - **Backend infra scope for MVP demo**: PostGIS/Redis/Celery vs simpler synchronous/local-storage approach — team ki compute/timeline availability dekh kar decide karna hai.
 - **Perceptual loss**: DINOv3 vs standard VGG-based perceptual loss — DINOv3 optional/stretch goal hai per PRD khud bhi.
 - **Nodata handling refinement**: Abhi LR nodata pixels ko 0 se replace kiya ja raha hai (D007). Agar training mein edge artifacts dikhein, to proper masking (loss se exclude karna) ya un ROIs ko filter karna consider karna hoga jinme nodata fraction zyada hai.
+- **ERGAS outlier investigation** (from D011): std (55.16) mean (15.57) se bahut zyada hai. Kuch specific ROIs identify karne hain jinka per-band ERGAS contribution abnormally high hai (likely low-mean reference band wale patches) — dekhna hai ki yeh genuine hard cases hain ya metric ka edge case (near-zero denominator).

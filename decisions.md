@@ -266,6 +266,28 @@ Isliye demo ke liye **SwinIR checkpoint use kiya**, EDSR nahi — chahe D013 mei
 
 ---
 
+## D021 — Backend: synchronous FastAPI MVP, one endpoint, no job queue/DB
+**Date:** 2026-09-08
+**Decision:** `backend/app/main.py` — ek hi endpoint `POST /api/infer`: GeoTIFF upload karo, response mein hi SR GeoTIFF + before/after PNG previews (base64) wapas milte hain. Model (SwinIR, D020 ke checkpoint) startup par ek baar load hota hai, har request par nahi. No Redis/Celery/job-queue, no PostgreSQL/PostGIS — sab kuch ek request-response cycle mein, in-memory (rasterio `MemoryFile` use kiya, disk par temp files bhi nahi likhi).
+
+Reusability ke liye `infer_scene.py` ko refactor kiya: tiling/blending/inference logic ab `run_sr_inference()` function mein hai (model + numpy array leta hai), jise CLI script aur backend dono use karte hain — duplicate nahi kiya. Refactor ke baad regression-test kiya (same input → exact same output, max diff 0.0 pre-refactor CLI output ke against).
+**Reasoning:** User ne explicitly synchronous mode choose kiya (job-queue PRD ka full vision hai, lekin bade scenes ke liye zaroori hai; humara demo-size patch input ke liye ek request 1.09 second mein complete ho jata hai — async/polling ki zaroorat nahi abhi). Yeh D004 ke decision se bhi consistent hai (heavy infra MVP ke liye defer karna).
+**Verification**: sirf "code likh diya" nahi — actual server start karke real GeoTIFF upload kiya curl se, response verify kiya (shapes, resolution, PNG/GeoTIFF decode karke dekha ki corrupt nahi hain, GeoTIFF ka CRS/resolution round-trip ke baad bhi sahi tha).
+**Alternatives considered:** Async job-queue (Celery+Redis) abhi implement karna — reject kiya (user's explicit choice), PRD ka full vision hai lekin abhi ke MVP scope se bahar. Disk par intermediate files likhna — reject kiya, in-memory processing (MemoryFile) simpler hai aur is chhoti scale par koi disadvantage nahi.
+**Status:** Accepted. Backend working end-to-end, verified with real upload.
+
+---
+
+## D022 — Frontend: Vite + React + TypeScript + Tailwind, single page, verified end-to-end through the dev-server proxy
+**Date:** 2026-09-08
+**Decision:** `frontend/` mein Vite scaffold kiya (react-ts template), Tailwind v4 (`@tailwindcss/vite` plugin — v4 mein `tailwind.config.js`/PostCSS setup ki jagah yeh recommended approach hai, purana v3-style setup nahi use kiya). Ek hi page (`App.tsx`): file upload input → `POST /api/infer` → before/after image side-by-side + GeoTIFF download button. Vite dev server ka `/api` proxy backend (port 8000) ko forward karta hai, taaki dev mein CORS ka jhanjhat na ho.
+**Reasoning:** User ne explicitly single-page minimal choose kiya (multi-page PRD dashboard baad mein). Stack (React+TS+Tailwind) already PRD/README mein decided tha — koi naya decision nahi, sirf implementation.
+**Verification**: Sirf `npm run build` (TypeScript compile check) hi nahi — dev server actually start kiya, `curl` se `/api/health` proxy ke through hit kiya (confirm kiya ki proxy sahi backend tak pahuchta hai), phir ek real GeoTIFF **proxy ke through** upload kiya (exactly wahi path jo browser ka `fetch()` use karega) — poora chain (Vite dev server → proxy → FastAPI → model → response) end-to-end verify hua, sirf backend ko directly test karke nahi.
+**Alternatives considered:** Multi-page dashboard abhi banana — reject kiya (user's explicit choice, PRD ka full vision baad ke liye hai).
+**Status:** Accepted. Full stack (backend D021 + frontend D022) working locally, browser mein use karne ke liye ready.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.

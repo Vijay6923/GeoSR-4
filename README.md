@@ -28,7 +28,25 @@ tests/
 docker/
 ```
 
-## Local demo
+## Running the full stack (backend + frontend)
+
+Backend (from repo root, needs `experiments/swinir/swinir_epoch19.pt` present -- see the SwinIR Colab notebook):
+
+```bash
+uvicorn backend.app.main:app --reload
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open the printed `localhost` URL, upload a 4-band (R,G,B,NIR) Sentinel-2 GeoTIFF, and the SR output renders in the page -- see `decisions.md` D021/D022 for why this is synchronous (no job queue) and single-page for now.
+
+## Local demo (CLI, no server)
 
 Once you have a trained checkpoint (e.g. `experiments/swinir/swinir_epoch19.pt`, downloaded from a Colab training run -- see the notebooks):
 

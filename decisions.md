@@ -209,6 +209,21 @@ Diagnosis: script ka actual default lr=1e-4 par retest kiya (1e-2 sirf meri quic
 
 ---
 
+## D017 — Phase 7: tiled inference with Hann-blending + GeoTIFF export, verified end-to-end
+**Date:** 2026-09-08
+**Decision:** `geospatial/tiling/tiler.py` (overlapping-tile extraction + Hann-window blended reassembly, PRD section 25-26), `geospatial/geotiff/export.py` (CRS/transform-preserving GeoTIFF writer, PRD section 40-41), aur `ml/inference/infer_scene.py` (poora pipeline: tile → normalize → infer → blend → denormalize → write) banaye. Abhi sirf EDSR support karta hai (SwinIR ko window_size-multiple tile size chahiye, D012 — abhi handle nahi kiya).
+**Reasoning:** Trained model sirf apne training patch size (121×121) par kaam janta hai, lekin real Sentinel-2 scenes bahut bada hote hain — isliye tiling zaroori hai. Bina overlap-blending ke, tile boundaries par visible seams aa sakte hain (PRD Section 26 ka concern).
+
+Verification (sirf "code likha, ho gaya" nahi bola):
+1. **Tiler correctness**: Ek synthetic scene par identity-transform (scale_factor=1) test kiya — extract_tiles + blend_tiles round-trip karke original ko wapas reconstruct kar paya, max error 2.4e-7 (float32 precision noise ke barabar). Isse confirm hua ki Hann-window blending aur indexing sahi hai.
+2. **End-to-end pipeline**: Ek real `lr.tif` (121×121) par chalaya (deliberately chhota `--tile-size 64` use kiya taaki multi-tile blending path genuinely exercise ho, na ki trivial single-tile case) — 9 tiles bane, sahi se blend hue, output GeoTIFF (484×484) mila.
+3. **Geospatial preservation check**: Output GeoTIFF ka CRS (EPSG:32611), origin, aur bounds input ke exactly same the — sirf resolution 10m→2.5m (4x) aur pixel dimensions 121→484 (4x) sahi se scale hue. Yeh directly verify karta hai PRD ka core Phase 7 requirement, sirf assume nahi kiya.
+4. Output pixel values (42-93 range) denormalized HR-domain scale mein the (D008's `denormalize()` function use kiya) — [0,1] normalized junk nahi.
+**Alternatives considered:** Naive non-overlapping tiling (bina blending ke) — reject kiya, PRD explicitly warns against visible tile-boundary artifacts. SwinIR ke liye bhi is turn mein support add karna — abhi ke liye defer kiya (window_size padding logic extra kaam hai, EDSR se pipeline validate karna pehle zaroori tha).
+**Status:** Accepted. Phase 7 core pipeline verified working.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.
@@ -220,3 +235,5 @@ Diagnosis: script ka actual default lr=1e-4 par retest kiya (1e-2 sirf meri quic
 - **Scale SwinIR to match EDSR's parameter count** (from D013): Abhi SwinIR 2.2x chhota hai phir bhi tied hai. Bigger embed_dim ya deeper RSTBs try karna chahiye ek fairer max-capacity comparison ke liye, before final "which architecture wins" call lena.
 - **Tune λ_spectral / λ_edge** (from D014): 0.1/0.1 sirf ek starting guess hai. Pehla ablation result dekhne ke baad (better/worse/same), agar promising lage to proper sweep (jaise 0.05/0.1/0.5/1.0) karna chahiye final numbers ke liye.
 - **Uncertainty warm-start** (from D016): Agar Colab par full-scale (2,283 pairs, 20 epochs) heteroscedastic training mein bhi instability dikhe (jo local 2-example test mein nahi dikha lr=1e-4 par, lekin bigger scale par naye patterns emerge ho sakte hain), to warm-start approach try karna — pehle plain-L1 EDSR se weights load karke, phir NLL ke saath fine-tune karna.
+- **SwinIR tiled inference** (from D017): `infer_scene.py` abhi sirf EDSR support karta hai. SwinIR ke liye tile_size ko window_size (11) ka multiple rakhna hoga, ya har tile ko pad/crop karna hoga.
+- **Uncertainty map GeoTIFF output** (from D017): Abhi `infer_scene.py` sirf SR image likhta hai. Uncertainty checkpoint (D016, out_channels=8) ke liye ek dusra output GeoTIFF (uncertainty map) bhi likhna chahiye, PRD ke dashboard vision (Section 13) ke mutabik.

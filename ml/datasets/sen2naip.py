@@ -21,7 +21,7 @@ TILE_RE = re.compile(r"_T(\d\d[A-Z]{3})_")
 STATS_PATH = "configs/normalization_stats.json"
 
 
-def _load_norm_stats():
+def load_norm_stats():
     """Per-band 2nd/98th percentile stats computed from the train split only
     (ml/datasets/compute_stats.py). Fixed /10000 and /255 divisors put LR and
     HR on two different, uncalibrated scales -- see decisions.md D008."""
@@ -35,6 +35,15 @@ def _normalize(arr: np.ndarray, band_ranges: np.ndarray) -> np.ndarray:
     lo = band_ranges[:, 0].reshape(-1, 1, 1)
     hi = band_ranges[:, 1].reshape(-1, 1, 1)
     return np.clip((arr - lo) / (hi - lo), 0.0, 1.0)
+
+
+def denormalize(arr: np.ndarray, band_ranges: np.ndarray) -> np.ndarray:
+    """Inverse of _normalize -- converts a model's [0,1] output back to the
+    physical band scale (e.g. HR's harmonized-NAIP range) for GeoTIFF export.
+    arr: (C,H,W) in [0,1]. band_ranges: (C,2) of [p2, p98] per band."""
+    lo = band_ranges[:, 0].reshape(-1, 1, 1)
+    hi = band_ranges[:, 1].reshape(-1, 1, 1)
+    return arr * (hi - lo) + lo
 
 
 def _tile_id(metadata: dict) -> str:
@@ -81,7 +90,7 @@ def tile_disjoint_split(root: str, val_frac=0.1, test_frac=0.1, seed=42):
 class SEN2NAIPCrossSensor(Dataset):
     def __init__(self, roi_dirs: list[str]):
         self.roi_dirs = roi_dirs
-        self.lr_ranges, self.hr_ranges = _load_norm_stats()
+        self.lr_ranges, self.hr_ranges = load_norm_stats()
 
     def __len__(self):
         return len(self.roi_dirs)

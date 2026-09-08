@@ -233,6 +233,26 @@ Verification (sirf "code likha, ho gaya" nahi bola):
 
 ---
 
+## D019 — Phase 5 ablation result: spectral+edge loss (λ=0.1/0.1) did NOT help, slightly hurt
+**Date:** 2026-09-08
+**Decision:** Colab run complete hua. Full-val-set (n=279) comparison:
+
+| Metric | Plain EDSR (D011) | EDSR + spectral(0.1) + edge(0.1) | Change |
+|---|---|---|---|
+| PSNR | 16.77 dB | 16.45 dB | -0.32 dB |
+| SSIM | 0.4427 | 0.4364 | -0.0063 |
+| SAM | 11.41° | 11.90° | +0.49° (worse) |
+| ERGAS | 15.57 | 15.60 | +0.03 (~flat, dono ke std bahut high hain outlier ki wajah se D015) |
+
+Sab 4 metrics mein slight regression, koi improvement nahi. Numbers as-is report kar rahe hain, chahe woh "loss addition helped" wali expected story na ho.
+**Reasoning:** λ=0.1/0.1 sirf ek starting guess tha (D014 mein hi flag kiya gaya tha ki tuning baaki hai). Auxiliary loss terms (spectral, edge) primary reconstruction objective (L1) ke saath compete kar sakte hain agar weight zyada ho — model thoda trade-off kar raha hoga spectral-angle/edge-sharpness ke liye reconstruction accuracy ki keemat par. Yeh ek genuine, honest negative result hai is λ setting ke liye — iska matlab yeh nahi ki spectral/edge loss concept hi galat hai, sirf itna hai ki 0.1/0.1 weight is architecture/task ke liye kaam nahi kiya.
+
+Note: is Colab run mein `evaluate_checkpoint.py` ka purana version chal raha tha (session D015 ke push se pehle clone hua tha) — isliye ERGAS ka median print nahi hua, sirf mean/std. Agli baar isi session mein kaam continue karna ho to `git pull` chalana zaroori hai naye fixes lene ke liye.
+**Alternatives considered:** Result ko chhupana ya "roughly same hai" bol ke downplay karna — reject kiya, PRD ka explicit "never fabricate/spin metrics" principle. λ ko turant retune karna — abhi ke liye hold kiya kyunki user ka immediate priority local demo hai; λ sweep Open Considerations mein already tracked hai.
+**Status:** Accepted. Phase 5 result recorded (negative finding, still valuable — batata hai λ tuning zaroori hai before spectral/edge loss ko production config maanne se pehle).
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.

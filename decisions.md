@@ -354,6 +354,22 @@ Metrics computation: SR output (jo already denormalized/physical-scale hai respo
 
 ---
 
+## D028 — Quality run complete: metrics roughly flat (as expected), real test is visual
+**Date:** 2026-09-08
+**Decision:** SwinIR + perceptual loss + ICNR (D023/D024/D025 fixes) training complete kiya — 30 epochs, koi crash nahi (dono memory fixes poore run mein held). Full val-set (n=279) comparison plain-L1 SwinIR (D013) ke against:
+
+| Metric | Plain SwinIR | + perceptual + ICNR |
+|---|---|---|
+| PSNR | 16.92 dB | 16.83 dB |
+| SSIM | 0.429 | 0.437 |
+| SAM | 11.60° | 12.07° |
+| ERGAS | 14.56 | 13.89 (median 8.90) |
+
+**Reasoning:** Numbers roughly wash hain — PSNR/SAM thoda flat/worse, SSIM/ERGAS thoda better. Yeh exactly literature-consistent hai: perceptual loss known tradeoff hai — pixel-fidelity metrics thodi qurbaan hoti hain perceptual/visual quality ke liye, guaranteed metric-improvement nahi hota. Is run ka asli maqsad metrics improve karna tha hi nahi — checkerboard artifact (D020) kam karna aur visually sharper output dena tha, jo metrics dekh nahi sakte. Real verification ab checkpoint download karke visual comparison se hoga (jaisa D020 mein pehle kiya tha).
+**Status:** Training accepted as successful (both D024/D025 fixes verified working end-to-end on real Colab GPU run, no crash). Visual verification pending (user download + rerun demo).
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.

@@ -105,6 +105,9 @@ def main():
         metrics = evaluate(model, val_ds, args.device)
         print(f"epoch {epoch} val metrics: {metrics}")
 
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()  # D025: switching train<->eval batch size fragments the allocator
+
         ckpt_path = f"{args.checkpoint_dir}/edsr_epoch{epoch}.pt"
         torch.save(model.state_dict(), ckpt_path)
         print(f"saved {ckpt_path}")

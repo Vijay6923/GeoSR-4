@@ -317,6 +317,21 @@ Reusability ke liye `infer_scene.py` ko refactor kiya: tiling/blending/inference
 
 ---
 
+## D025 — Second OOM (different cause): CUDA allocator fragmentation, not raw capacity
+**Date:** 2026-09-08
+**Decision:** D024 ka resize fix kaam kiya (epoch 0 successfully complete hua, checkpoint bhi save hua) — lekin epoch 1 shuru hote hi phir OOM aaya, is baar SwinIR ke apne upsample/PixelShuffle step mein, VGG mein nahi. Error message mein clue tha: "2.08 GiB is reserved by PyTorch but unallocated" — yeh capacity issue nahi, **fragmentation** hai (total free+reserved memory kaafi thi, lekin ek single 858MB contiguous block available nahi tha). Crash specifically ek pura epoch + validation (train batch=16 → eval batch=1 → wapas train) cycle ke baad hua, jo is fragmentation-hypothesis ko support karta hai (batch size baar-baar switch karna allocator ko fragment karta hai).
+
+Teen fixes ek saath kiye:
+1. Har epoch ke end mein (checkpoint save se pehle) `torch.cuda.empty_cache()` call kiya — teeno training scripts mein (`train_swinir.py`, `train_edsr.py`, `train_edsr_uncertainty.py`, consistency ke liye, chahe abhi sirf SwinIR crash hua ho).
+2. `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` env var set kiya Colab cell mein — yeh khud PyTorch ke apne error message ka suggestion hai, allocator ko existing segments expand karne deta hai naye contiguous blocks maangne ki jagah.
+3. Batch size 16→8 kam kiya is specific run ke liye (extra safety margin, do OOM ke baad).
+**Reasoning:** Do alag-alag OOM causes (D024: raw capacity/resolution, D025: fragmentation) ek hi "quality run" mein mile — dono fix karna zaroori tha taaki teesri baar phir se fail na ho. `torch.cuda.is_available()` guard ke saath likha taaki local CPU testing break na ho.
+**Verification**: Local smoke test (CPU, `torch.cuda.is_available()` False hone ki wajah se `empty_cache()` skip hota hai) — 2 epochs clean chale, koi syntax/logic error nahi. Actual fragmentation-fix ka real verification sirf Colab GPU par hoga (memory allocator behavior local CPU run mein reproduce nahi hota).
+**Alternatives considered:** Sirf batch size kam karna (bina fragmentation fix ke) — reject kiya kyunki root cause specifically fragmentation tha (capacity nahi), to sirf batch-size-reduction band-aid hota; asal fix (empty_cache + expandable_segments) zyada targeted hai.
+**Status:** Accepted, locally verified (syntax/logic only). Colab retry #2 pending (user action).
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.

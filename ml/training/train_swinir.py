@@ -14,6 +14,8 @@ sys.path.insert(0, ".")
 from ml.datasets.sen2naip import SEN2NAIPCrossSensor, tile_disjoint_split
 from ml.models.swinir.swinir import SwinIR
 from ml.evaluation.metrics import compute_all_metrics
+from ml.losses.spectral import SpectralAngleLoss
+from ml.losses.edge import EdgeLoss
 
 ROOT = "ml/datasets/raw/sen2naip/cross-sensor/extracted/cross-sensor"
 
@@ -31,6 +33,8 @@ def parse_args():
     p.add_argument("--window-size", type=int, default=11)
     p.add_argument("--checkpoint-dir", type=str, default="experiments/swinir")
     p.add_argument("--log-every", type=int, default=10)
+    p.add_argument("--lambda-spectral", type=float, default=0.0, help="PRD section 34-35, 0 = L1 only (baseline)")
+    p.add_argument("--lambda-edge", type=float, default=0.0, help="PRD section 37, 0 = L1 only (baseline)")
     return p.parse_args()
 
 
@@ -68,7 +72,11 @@ def main():
         num_heads=args.num_heads, window_size=args.window_size,
     ).to(args.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    criterion = nn.L1Loss()
+    l1_loss = nn.L1Loss()
+    spectral_loss = SpectralAngleLoss().to(args.device)
+    edge_loss = EdgeLoss().to(args.device)
+
+    print(f"loss: L1 + {args.lambda_spectral} * spectral + {args.lambda_edge} * edge")
 
     os.makedirs(args.checkpoint_dir, exist_ok=True)
 
@@ -80,7 +88,11 @@ def main():
             hr = batch["hr"].to(args.device)
 
             sr = model(lr)
-            loss = criterion(sr, hr)
+            loss = l1_loss(sr, hr)
+            if args.lambda_spectral > 0:
+                loss = loss + args.lambda_spectral * spectral_loss(sr, hr)
+            if args.lambda_edge > 0:
+                loss = loss + args.lambda_edge * edge_loss(sr, hr)
 
             optimizer.zero_grad()
             loss.backward()

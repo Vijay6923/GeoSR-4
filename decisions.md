@@ -174,6 +174,17 @@ Numbers fabricate nahi kiye — jo mila wahi report kiya, chahe woh "transformer
 
 ---
 
+## D014 — Phase 5: spectral + edge loss added (ablation on top of EDSR, not a new architecture)
+**Date:** 2026-09-08
+**Decision:** `ml/losses/spectral.py` (differentiable SAM, torch-native version of the eval metric) aur `ml/losses/edge.py` (Sobel-gradient L1 loss) add kiye. `train_edsr.py` aur `train_swinir.py` dono mein `--lambda-spectral`/`--lambda-edge` CLI flags add kiye (default 0.0 = pure L1, matlab existing baseline runs ka behavior bilkul same rehta hai, backward compatible). Ablation architecture change nahi hai — EDSR ka wahi 16-block/64-channel config reuse kiya, sirf loss function change kiya, taaki loss ka effect architecture se isolate ho sake (PRD Section 32: Model A vs Model A + spectral loss).
+**Reasoning:** SAM loss ke liye `acos()` use kiya (differentiable spectral angle) — `acos` ka gradient ±1 ke paas explode karta hai, isliye cosine value ko `[-1+1e-7, 1-1e-7]` mein clamp kiya, jo `compute_sam` (eval metric) ke `[-1,1]` clamp se thoda tighter hai specifically gradient stability ke liye. Edge loss Sobel filter se gradient magnitude nikal ke dono images (SR, HR) ke beech L1 leta hai.
+
+λ_spectral aur λ_edge dono ke default 0.1 rakhe pehle ablation run ke liye — yeh ek starting guess hai, properly tuned nahi (hyperparameter search is stage par scope se bahar hai, PRD ke anti-overengineering ethos ke mutabik). 2-example overfit sanity check (D009/D012 jaisa pattern) pehle chalaya combined loss ke saath — loss 0.76→0.16 (60 steps), gradient norm healthy raha, koi NaN/explosion nahi.
+**Alternatives considered:** Naya model architecture banana loss ke saath — reject kiya, kyunki tab yeh confound ho jaata ki improvement architecture se aaya ya loss se. Perceptual/DINOv3 loss abhi add nahi kiya — woh already Open Considerations mein "stretch goal" hai, aur is ablation ko simple rakhna hai pehle.
+**Status:** Accepted. Local smoke-tested (dono scripts, combined loss). Colab ablation run pending (user action) — `notebooks/train_edsr_colab.ipynb` mein naya "Phase 5 ablation" section add kiya jo same EDSR config ko spectral+edge loss ke saath train karke turant full-val-set evaluate bhi kar deta hai.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.
@@ -183,3 +194,4 @@ Numbers fabricate nahi kiye — jo mila wahi report kiya, chahe woh "transformer
 - **Nodata handling refinement**: Abhi LR nodata pixels ko 0 se replace kiya ja raha hai (D007). Agar training mein edge artifacts dikhein, to proper masking (loss se exclude karna) ya un ROIs ko filter karna consider karna hoga jinme nodata fraction zyada hai.
 - **ERGAS outlier investigation** (from D011): std (55.16) mean (15.57) se bahut zyada hai. Kuch specific ROIs identify karne hain jinka per-band ERGAS contribution abnormally high hai (likely low-mean reference band wale patches) — dekhna hai ki yeh genuine hard cases hain ya metric ka edge case (near-zero denominator). SwinIR mein bhi same pattern dikha (std 51.32 vs mean 14.56) — confirms yeh dataset/metric-level issue hai, model-specific nahi.
 - **Scale SwinIR to match EDSR's parameter count** (from D013): Abhi SwinIR 2.2x chhota hai phir bhi tied hai. Bigger embed_dim ya deeper RSTBs try karna chahiye ek fairer max-capacity comparison ke liye, before final "which architecture wins" call lena.
+- **Tune λ_spectral / λ_edge** (from D014): 0.1/0.1 sirf ek starting guess hai. Pehla ablation result dekhne ke baad (better/worse/same), agar promising lage to proper sweep (jaise 0.05/0.1/0.5/1.0) karna chahiye final numbers ke liye.

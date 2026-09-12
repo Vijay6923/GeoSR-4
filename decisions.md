@@ -407,6 +407,17 @@ Scientific recommendation (agar aage badhte hain): synthetic data ko **directly 
 
 ---
 
+## D032 — Cloud/nodata masking: SCL-based, verified against real clouds, wired into inference
+**Date:** 2026-09-13
+**Decision:** `geospatial/preprocessing/cloud_mask.py` banaya — Sentinel-2 L2A ke apne Scene Classification Layer (SCL) band se cloud/shadow/nodata mask compute karta hai. Class codes web-search se verify kiye (D024 jaisi discipline — memory se hardcode nahi kiya): 0 nodata, 1 saturated/defective, 3 cloud shadow, 8/9 cloud medium/high probability, 10 thin cirrus = invalid; baaki (vegetation, water, snow, dark-area shadow, unclassified) valid maana. `fetch_sentinel2_aoi.py` ko extend kiya SCL bhi fetch kare (20m native resolution, nearest-neighbor se 10m grid par align kiya — categorical/class data ko kabhi interpolate nahi karte). `infer_scene.py` mein `--scl` aur `--max-cloud-fraction` flags add kiye — agar diya jaaye, cloud/shadow pixels ko inference se pehle 0 kar dete hain, aur agar cloud fraction threshold se zyada hai to explicitly refuse kar dete hain SR chalane se ("refusing to run SR over unreliable input") bajaye silently garbage output dene ke.
+
+**Verification** (sirf "code likha, chal gaya" nahi): (1) Known-clear Delhi scene par 0.00% cloud aaya — expected. (2) Deliberately ek real monsoon-season Mumbai scene dhoondha (36.9% scene-level cloud cover) — humara AOI-level pixel count 39.04% nikla, close match. (3) **Sabse important**: mask ko RGB image ke upar visually overlay karke dekha — jahan clouds genuinely dikh rahe the (white/hazy patches), wahi red/masked the; clear areas (lake, park, buildings) green/valid the. (4) End-to-end test kiya: masking+proceed (39% < 50% default threshold) sahi se chala, aur stricter threshold (20%) ke saath abort bhi sahi se hua.
+**Reasoning:** Yeh PRD ka apna explicit requirement tha ("cloud/no-data handling" preprocessing mein, Section 23) jo defense-brief mein "named but not built" ke roop mein flag kiya gaya tha — ab genuinely built aur verified hai. Model ko kabhi cloud data par train nahi kiya gaya, to cloud-covered pixels par confidently SR chalana misleading/fabricated output dega — is se better hai clearly "yahan data nahi hai" dikhana.
+**Alternatives considered:** Sirf whole-scene `eo:cloud_cover` metadata (STAC item property) par rely karna — reject kiya kyunki woh poori 100km tile ka average hai, hamare chhote AOI crop ke liye precise nahi (ek clear-average tile ka specific corner bhi cloudy ho sakta hai) — isliye pixel-level SCL check zaroori tha exact crop ke liye.
+**Status:** Accepted. Local pipeline mein verified working.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

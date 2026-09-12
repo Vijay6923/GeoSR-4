@@ -23,6 +23,7 @@ from ml.models.swinir.swinir import SwinIR
 from ml.uncertainty.heteroscedastic import split_mean_logvar
 from geospatial.tiling.tiler import extract_tiles, blend_tiles
 from geospatial.geotiff.export import write_sr_geotiff
+from geospatial.preprocessing.cloud_mask import compute_valid_mask, cloud_cover_fraction, apply_cloud_mask
 
 SCALE_FACTOR = 4
 
@@ -89,6 +90,12 @@ def main():
     p.add_argument("--num-heads", type=int, default=6, help="swinir only")
     p.add_argument("--window-size", type=int, default=11, help="swinir only")
     p.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
+    p.add_argument("--scl", type=str, default=None,
+                    help="optional Sentinel-2 SCL band GeoTIFF, same footprint/grid as --input "
+                         "(e.g. from fetch_sentinel2_aoi.py) -- masks cloud/shadow/nodata pixels "
+                         "to 0 before inference, since the model was never trained on clouds")
+    p.add_argument("--max-cloud-fraction", type=float, default=0.5,
+                    help="abort if more than this fraction of the scene is cloud/shadow/nodata (only checked with --scl)")
     args = p.parse_args()
 
     if args.uncertainty and args.uncertainty_output is None:
@@ -102,6 +109,18 @@ def main():
             scene[scene == src.nodata] = 0.0
         src_transform = src.transform
         src_crs = src.crs
+
+    if args.scl:
+        with rasterio.open(args.scl) as src:
+            scl = src.read(1)
+        cloud_pct = cloud_cover_fraction(scl) * 100
+        print(f"cloud/shadow/nodata fraction: {cloud_pct:.2f}%")
+        if cloud_pct / 100 > args.max_cloud_fraction:
+            raise ValueError(
+                f"scene is {cloud_pct:.1f}% cloud/shadow/nodata, above --max-cloud-fraction "
+                f"({args.max_cloud_fraction * 100:.0f}%) -- refusing to run SR over unreliable input"
+            )
+        scene = apply_cloud_mask(scene, compute_valid_mask(scl), fill_value=0.0)
 
     lr_ranges, hr_ranges = load_norm_stats()
 

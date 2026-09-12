@@ -6,14 +6,32 @@ decisions.md D030), where we can run inference but can't compute metrics.
 """
 
 import argparse
+import sys
 import numpy as np
 import rasterio
 from pystac_client import Client
 from rasterio.warp import transform
 from rasterio.windows import Window
 
+sys.path.insert(0, ".")
+from geospatial.preprocessing.cloud_mask import cloud_cover_fraction
+
 STAC_URL = "https://earth-search.aws.element84.com/v1"
 BAND_ASSETS = ["red", "green", "blue", "nir"]  # R,G,B,NIR -- matches training band order (D006)
+
+
+def _fetch_scl_aligned(item, half_size_px: int, lon: float, lat: float) -> np.ndarray:
+    """SCL ships at 20m (half the resolution of the 10m R/G/B/NIR bands).
+    Reads the matching-footprint window in SCL's own pixel grid, then
+    nearest-neighbor upsamples 2x to align with the 10m grid -- never
+    interpolate a categorical/class band."""
+    with rasterio.open(item.assets["scl"].href) as src:
+        xs, ys = transform("EPSG:4326", src.crs, [lon], [lat])
+        row, col = src.index(xs[0], ys[0])
+        half_20m = half_size_px // 2
+        window = Window(col - half_20m, row - half_20m, half_20m * 2, half_20m * 2)
+        scl = src.read(1, window=window)
+    return np.repeat(np.repeat(scl, 2, axis=0), 2, axis=1)
 
 
 def fetch_aoi(lon: float, lat: float, half_size_px: int, output_path: str,
@@ -52,8 +70,16 @@ def fetch_aoi(lon: float, lat: float, half_size_px: int, output_path: str,
         with rasterio.open(output_path, "w", **profile) as dst:
             dst.write(stack)
 
-        print(f"fetched {item.id} (cloud cover {item.properties.get('eo:cloud_cover'):.3f}%) -> {output_path}")
+        scl = _fetch_scl_aligned(item, half_size_px, lon, lat)
+        scl_path = output_path.rsplit(".", 1)[0] + "_scl.tif"
+        scl_profile = {**profile, "count": 1, "dtype": scl.dtype}
+        with rasterio.open(scl_path, "w", **scl_profile) as dst:
+            dst.write(scl, 1)
+
+        pixel_cloud_pct = cloud_cover_fraction(scl) * 100
+        print(f"fetched {item.id} (scene-level cloud cover {item.properties.get('eo:cloud_cover'):.3f}%) -> {output_path}")
         print(f"shape: {stack.shape}, bounds: {rasterio.transform.array_bounds(stack.shape[1], stack.shape[2], win_transform)}")
+        print(f"AOI-level cloud/shadow/nodata fraction (from SCL, this exact crop): {pixel_cloud_pct:.2f}% -> {scl_path}")
         return
 
     raise ValueError(f"found scenes near ({lon}, {lat}) but the AOI didn't fall inside any of their tiles")

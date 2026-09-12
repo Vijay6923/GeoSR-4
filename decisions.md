@@ -383,9 +383,34 @@ Backend ka `CHECKPOINT_PATH` update kiya naye checkpoint par point karne ke liye
 
 ---
 
+## D030 — Indian AOI qualitative validation: works well on real Delhi imagery, closes the biggest flagged gap
+**Date:** 2026-09-13
+**Decision:** Ek real, free, no-account-needed Sentinel-2 scene fetch kiya AWS Open Data se (Element84's public Earth Search STAC catalog, `pystac-client` se query kiya) — central Delhi (Connaught Place area), Feb 2026, cloud cover ~0.0006% (effectively clear). 400×400 px (4km×4km) crop liya seedha remote COG se rasterio windowed-read se (poora ~110km tile download nahi kiya). Isko already-trained checkpoint (`swinir_quality/swinir_epoch29.pt`, koi retraining nahi) se run kiya.
+
+**Result:** Visually strong — dense urban grid (jo blur/mottled tha 10m input mein) individual buildings mein resolve hua, Connaught Place ka radial road pattern kaafi saaf ho gaya, green spaces/park boundaries clear hue. Yeh model ne kabhi kisi Indian scene par train nahi kiya tha (sirf US NAIP data), phir bhi structurally sound, plausible output diya.
+
+Reusable script bana diya (`geospatial/preprocessing/fetch_sentinel2_aoi.py`) — kisi bhi lon/lat AOI ke liye Sentinel-2 crop fetch kar sakta hai, future locations/disaster-sites test karne ke liye reuse ho sakta hai.
+**Reasoning:** Yeh defense-brief mein flagged sabse bada gap tha ("Is your training data Indian?"). Ab humare paas ek concrete, real, visually-verified qualitative demo hai. **Important honest caveat**: yeh sirf qualitative hai — koi Indian ground-truth HR reference exist nahi karta, isliye PSNR/SSIM/SAM/ERGAS jaise quantitative metrics yahan compute NAHI ho sakte. Yeh "does it look plausible on Indian terrain" ka jawab hai, "here's the accuracy number for India" ka nahi — is distinction ko clearly communicate karna hai.
+**Alternatives considered:** Ground-truth ke bina bhi koi fake/estimated metric dikhana — reject kiya, poore project ke "never fabricate" principle ke against jaata.
+**Status:** Accepted. Real, visually-verified qualitative result mil gaya. Assets `experiments/india_aoi/` mein saved (gitignored, local).
+
+---
+
+## D031 — Synthetic-shard data-scaling investigated: feasible via `opensr-degradation`, but real added complexity, not started yet
+**Date:** 2026-09-13
+**Decision:** User ne suggest kiya SEN2NAIP ke 18 synthetic shards (D002 mein documented, ~177GB total) use karke training data badhana, taaki bigger model/zyada epochs safely try kar sakein (overfitting risk kam ho, sirf 2,283 train pairs abhi hain). Verify kiya: synthetic split mein ready-made `lr.tif` nahi hai — sirf full-res NAIP image + ek "degradation model histogram" (`metadata.json` mein) hota hai. Synthetic LR generate karne ke liye ek existing package chahiye: **`opensr-degradation`** (ESA ka open-source package, `ESAOpenSR/opensr-degradation` GitHub par, MIT license, pip-installable — `opensr_degradation.main.get_s2like(image, table, model="gamma_multivariate_normal_50")`).
+
+**Reasoning:** Yeh feasible hai lekin "download folder, extra pairs mil gaye" jitna simple nahi — ek extra dependency chahiye, aur package abhi kaafi naya/niche hai (26 stars, 9 commits, paper "coming soon" — humein khud verify karna hoga smoke-test se ki yeh sahi kaam karta hai, blindly trust nahi karna, jaisa humne poore project mein har naye component ke saath kiya hai).
+
+Scientific recommendation (agar aage badhte hain): synthetic data ko **directly real cross-sensor data ke saath mix nahi karna** — synthetic degradation ek simulated function hai, real sensor physics nahi, to model us specific simulation ko "undo karna" seekh sakta hai jo real Sentinel-2 par generalize nahi karega. Better approach: synthetic par **pretrain** karo (bahut zyada data, general texture/upsampling patterns seekhne ke liye), phir real cross-sensor data par **fine-tune + evaluate** karo (jaisa D002 mein already recommend tha: "synthetic training initially, then validate/fine-tune using real-world data").
+**Status:** Investigated, feasible, **not yet started**. Agla step (agar proceed karna hai): `opensr-degradation` install karke ek chhota sample par smoke-test karna (kya yeh sahi S2-like image deta hai), phir Kaggle par (30hr/week free GPU) pretrain-then-finetune pipeline banana.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
-- **Indian HR reference imagery**: Abhi tak koi concrete Indian-AOI paired dataset identify nahi hua. SEN2NAIP US-only (NAIP) hai. Demo ke liye Indian AOI par qualitative (no ground-truth) inference run karna zaroori hoga — isko formal decision banate waqt yahan document karna.
+- ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.
+- **Synthetic-data pretraining pipeline** (from D031): `opensr-degradation` package verify + smoke-test karna, phir synthetic-pretrain → real-finetune pipeline banana Kaggle par (30hr/week free GPU) — bigger model/zyada epochs safely try karne ke liye.
 - **Uncertainty estimation method**: PRD MC-ensemble (5x inference) suggest karta hai; single-pass heteroscedastic head (mean+variance in one forward pass) zyada compute-efficient alternative hai. Final choice benchmarking ke baad decide hoga.
 - **Backend infra scope for MVP demo**: PostGIS/Redis/Celery vs simpler synchronous/local-storage approach — team ki compute/timeline availability dekh kar decide karna hai.
 - **Perceptual loss**: DINOv3 vs standard VGG-based perceptual loss — DINOv3 optional/stretch goal hai per PRD khud bhi.

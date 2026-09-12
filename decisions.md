@@ -431,6 +431,16 @@ Scientific recommendation (agar aage badhte hain): synthetic data ko **directly 
 
 ---
 
+## D034 — Uncertainty training prep: Kaggle notebook + fixed a real evaluation gap
+**Date:** 2026-09-13
+**Decision:** GPU-training items (uncertainty, bigger/longer retrain, synthetic pipeline) sirf Colab/Kaggle par chal sakte hain, is CPU-only local machine par nahi — to unhe actually chalane ke liye user ka apna action chahiye. Jo abhi locally kiya ja sakta tha: `notebooks/train_edsr_uncertainty_kaggle.ipynb` banaya (Kaggle-adapted, user ke Kaggle 30hr/week free GPU suggestion ke mutabik) — Colab version se paths/download-mechanism alag hai (`/kaggle/working/`, `google.colab.files.download` ki jagah Output-tab se download).
+
+**Real gap catch kiya is prep ke dauraan**: `evaluate_checkpoint.py` mein `--uncertainty` flag exist hi nahi karta tha — matlab agar user Kaggle par uncertainty model train kar leta, to poore validation set (279 pairs) par proper evaluate karne ka koi tareeka nahi tha (sirf training ke andar ka 50-sample per-epoch estimate milta, jaisa D016 mein tha). Isko fix kiya — ab `--uncertainty` flag se dono (a) standard metrics (mean prediction par) aur (b) calibration statistic (poore val set par, sirf training ke 50-sample se nahi) compute ho sakte hain. Local smoke-test kiya (5 val samples, 4-step tiny checkpoint se) — chalta hai correctly.
+**Reasoning:** Yeh gap agar pehle na pakड़ते, to user Kaggle GPU-hours use karke train karta, phir realize hota ki evaluate karne ka tareeka hi missing hai — isse better hai ki training start karne se pehle hi yeh fix ho jaaye.
+**Status:** Accepted. Notebook ready, evaluation gap closed. Actual Kaggle run pending (user action).
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

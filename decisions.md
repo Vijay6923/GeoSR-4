@@ -418,6 +418,19 @@ Scientific recommendation (agar aage badhte hain): synthetic data ko **directly 
 
 ---
 
+## D033 — Downstream task (Phase 8): zero-shot segmentation proxy attempted, found inconclusive, abandoned honestly
+**Date:** 2026-09-13
+**Decision:** Phase 8 validate karne ke liye Meta ka Segment Anything Model (SAM, ViT-B, zero-shot, no labeled data chahiye) use kiya — bicubic-upsampled input, SR output, aur ground truth (`ROI_0057`) par automatic mask generation chalake distinct segment count compare kiya, "does SR help identify more real structures" ka proxy test karne ke liye.
+
+**Ek real bug pehle catch kiya**: pehla run "bicubic = 1 segment" dikha raha tha — visually verify kiya to pata chala bicubic-upsampled image ek solid uniform color render ho raha tha (`upsample_bicubic()` ko raw un-normalized reflectance values diye the, jiska internal `.clamp(0,1)` sab kuch 1.0 par clip kar deta, D008 ka normalization step missing tha). Fix kiya (normalize → bicubic upsample → denormalize, taaki teeno images same physical scale share karein).
+
+**Fix ke baad real result**: Bicubic 12 segments, SR 8, ground truth 14 — **raw count SR ke favor mein nahi tha**. Visually inspect kiya: bicubic ke bade segments open/smooth field areas mein the (building cluster ko bilkul miss kar gaya), SR ka ek chhota segment building-cluster location par tha (real structure), plus ek road segment. Lekin jab location-aware overlap metric banaya (kya segments ground-truth "structure" regions se overlap karte hain), woh bhi clean nahi nikla (bicubic 32.6% vs SR 27.6% overlap) — kyunki ground truth ke apne 14 SAM segments khud bhi pure "buildings" nahi the (pond, bare-soil patches bhi include the), jo overlap-metric ko dilute/noisy bana deta hai.
+**Reasoning:** Yeh method (zero-shot SAM segment count/overlap, bina labeled data ke) is specific case ke liye clean quantitative claim dene laayak nahi nikla. Visual evidence still real hai (SR building cluster resolve karta hai, bicubic nahi karta) — lekin numbers ko headline result ki tarah present karna overclaim hota, jo poore project ke "never fabricate/spin" principle ke against jaata.
+**Alternatives considered:** Manually ek building-cluster bounding box mark karke tighter check karna — user ne abhi ke liye reject kiya (is approach par aur time invest nahi karna).
+**Status:** Attempted, honestly inconclusive, **abandoned for now** per user's explicit choice. Visual qualitative evidence (building cluster comparison) reusable hai future materials mein, quantitative segment-count numbers nahi.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

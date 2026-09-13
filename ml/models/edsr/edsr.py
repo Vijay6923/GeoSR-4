@@ -22,7 +22,8 @@ class ResidualBlock(nn.Module):
 
 
 class EDSR(nn.Module):
-    def __init__(self, in_channels=4, out_channels=4, n_channels=64, n_blocks=16, scale_factor=4):
+    def __init__(self, in_channels=4, out_channels=4, n_channels=64, n_blocks=16, scale_factor=4,
+                 use_icnr_init=True):
         super().__init__()
         assert scale_factor in (2, 4), "only 2x or 4x supported by this upsample head"
 
@@ -31,7 +32,7 @@ class EDSR(nn.Module):
         self.body_tail = nn.Conv2d(n_channels, n_channels, 3, padding=1)
 
         n_upsamples = 1 if scale_factor == 2 else 2
-        self.upsample = nn.Sequential(*[UpsampleBlock(n_channels) for _ in range(n_upsamples)])
+        self.upsample = nn.Sequential(*[UpsampleBlock(n_channels, use_icnr_init) for _ in range(n_upsamples)])
 
         self.tail = nn.Conv2d(n_channels, out_channels, 3, padding=1)
 

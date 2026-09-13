@@ -515,6 +515,21 @@ Fused output dono individual models se **better ya tied hai har metric par** (ER
 
 ---
 
+## D040 — Set up isolation of ICNR vs perceptual loss (2x2 ablation design)
+**Date:** 2026-09-13
+**Decision:** D023 ne ICNR init aur perceptual loss dono ek saath change kiye the (time-constraint ki wajah se) — kabhi isolate nahi kiya ki visible sharpness improvement (D029) kis wajah se aaya. Isko close karne ke liye `UpsampleBlock` mein `use_icnr_init` flag add kiya (default `True`, taaki baaki poora codebase bina change ke chalta rahe), EDSR/SwinIR dono mein thread kiya, `train_swinir.py` mein `--no-icnr-init` CLI flag add kiya.
+
+Do naye training configs banaye (Colab notebook mein section 7a/7b):
+- **7a (ICNR-only)**: ICNR on, perceptual off — D013 baseline (dono off) se compare hoga
+- **7b (Perceptual-only)**: ICNR off, perceptual on — bhi D013 se compare hoga
+
+Isse ek clean 2x2 grid milta hai: D013 (dono off), D028 (dono on), 7a (sirf ICNR), 7b (sirf perceptual) — bina D013/D028 dobara chalaye.
+**Verification**: `icnr_init` toggle ko directly test kiya (2x2 patch uniformity check, D023 jaisa) — `use_icnr_init=True` se std=0.0 (uniform), `False` se std=0.408 (random, non-uniform) — confirm hua toggle sahi kaam karta hai. Teeno relevant flag-combinations (default, `--no-icnr-init --lambda-perceptual`, default-again) local CPU par smoke-test kiye — sab clean chale.
+**Reasoning:** Ab tak ka combined result (D023-D029) genuinely achha tha, lekin attribution unclear thi — panel ko precise answer dena better hai "dono change kiye, pata nahi kaunsa kaam kiya" se.
+**Status:** Code + notebook ready. Real Colab runs pending (user action) — dono 20 epochs, protocol D013 se match karta hai.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

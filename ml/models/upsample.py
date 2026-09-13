@@ -34,12 +34,18 @@ def icnr_init(conv: nn.Conv2d, upscale_factor: int, init_fn=nn.init.kaiming_norm
 
 
 class UpsampleBlock(nn.Module):
-    """One 2x upsample via ICNR-initialized sub-pixel convolution."""
+    """One 2x upsample via sub-pixel convolution, ICNR-initialized by default.
 
-    def __init__(self, n_channels: int):
+    use_icnr_init=False (default-random init instead) exists only for the
+    D040 ablation -- isolating ICNR's individual contribution from the
+    perceptual loss's (D023 trained both changes together). Always leave
+    it True outside of that specific experiment."""
+
+    def __init__(self, n_channels: int, use_icnr_init: bool = True):
         super().__init__()
         self.conv = nn.Conv2d(n_channels, n_channels * 4, 3, padding=1)
-        icnr_init(self.conv, upscale_factor=2)
+        if use_icnr_init:
+            icnr_init(self.conv, upscale_factor=2)
         self.shuffle = nn.PixelShuffle(2)
 
     def forward(self, x):

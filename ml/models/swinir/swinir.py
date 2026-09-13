@@ -142,7 +142,8 @@ class RSTB(nn.Module):
 
 class SwinIR(nn.Module):
     def __init__(self, in_channels=4, out_channels=4, embed_dim=60,
-                 depths=(2, 2, 2, 2), num_heads=6, window_size=11, scale_factor=4):
+                 depths=(2, 2, 2, 2), num_heads=6, window_size=11, scale_factor=4,
+                 use_icnr_init=True):
         super().__init__()
         assert scale_factor in (2, 4)
         self.window_size = window_size
@@ -153,7 +154,7 @@ class SwinIR(nn.Module):
         self.conv_after_body = nn.Conv2d(embed_dim, embed_dim, 3, padding=1)
 
         n_upsamples = 1 if scale_factor == 2 else 2
-        self.upsample = nn.Sequential(*[UpsampleBlock(embed_dim) for _ in range(n_upsamples)])
+        self.upsample = nn.Sequential(*[UpsampleBlock(embed_dim, use_icnr_init) for _ in range(n_upsamples)])
         self.conv_last = nn.Conv2d(embed_dim, out_channels, 3, padding=1)
 
     def forward(self, x):

@@ -37,6 +37,9 @@ def parse_args():
     p.add_argument("--lambda-spectral", type=float, default=0.0, help="PRD section 34-35, 0 = L1 only (baseline)")
     p.add_argument("--lambda-edge", type=float, default=0.0, help="PRD section 37, 0 = L1 only (baseline)")
     p.add_argument("--lambda-perceptual", type=float, default=0.0, help="PRD section 36, VGG perceptual loss -- see decisions.md D023")
+    p.add_argument("--no-icnr-init", action="store_true",
+                    help="disable ICNR upsample init (random init instead) -- D040 ablation only, "
+                         "isolates ICNR's contribution from the perceptual loss's. Leave ICNR on otherwise.")
     return p.parse_args()
 
 
@@ -72,6 +75,7 @@ def main():
     model = SwinIR(
         embed_dim=args.embed_dim, depths=depths,
         num_heads=args.num_heads, window_size=args.window_size,
+        use_icnr_init=not args.no_icnr_init,
     ).to(args.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     l1_loss = nn.L1Loss()

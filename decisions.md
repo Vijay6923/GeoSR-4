@@ -506,6 +506,15 @@ Fused output dono individual models se **better ya tied hai har metric par** (ER
 
 ---
 
+## D039 — Live demo now serves confidence-weighted fusion, not raw SwinIR
+**Date:** 2026-09-13
+**Decision:** Backend ka `/api/infer` ab `confidence_weighted_fuse()` (D038) ka output serve karta hai — raw SwinIR nahi. Dono models (SwinIR aur EDSR-uncertainty) already load hote the dual-inference (D037) ke liye; ab unka combined/fused output hi "GeoSR-4 output" ban gaya hai, sirf uncertainty heatmap ke liye alag se EDSR std use hota rehta hai.
+**Verification**: Backend restart kiya, poore proxy path (5173→8000) se real upload test kiya. Metrics EXACT match hue standalone fusion test ke (PSNR 16.92, SSIM 0.2177 — same patch, same numbers) — confirm hua ki integration bilkul sahi hai. Output image bhi visually clean render hua, koi blending artifact nahi.
+**Reasoning:** D038 mein verify ho chuka tha ki fusion genuinely better hai (poore val set par har metric par best ya tied) — is improvement ko live demo mein use na karna waste hota.
+**Status:** Accepted. Live demo ab humara best-verified output serve karta hai.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

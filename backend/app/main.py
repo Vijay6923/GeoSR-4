@@ -20,6 +20,7 @@ from rasterio.io import MemoryFile
 sys.path.insert(0, ".")
 from ml.datasets.sen2naip import load_norm_stats, _normalize
 from ml.inference.infer_scene import build_model, run_sr_inference, SCALE_FACTOR
+from ml.inference.fuse_models import confidence_weighted_fuse
 from ml.evaluation.metrics import compute_all_metrics
 from geospatial.geotiff.export import write_sr_geotiff
 from ml.inference.visualize_demo import to_rgb_display
@@ -105,18 +106,20 @@ async def infer(file: UploadFile = File(...), hr_reference: Optional[UploadFile]
     if scene.shape[0] != 4:
         raise HTTPException(400, f"expected 4 bands (R,G,B,NIR), got {scene.shape[0]}")
 
-    sr_scene, _ = run_sr_inference(
+    swinir_out, _ = run_sr_inference(
         _state["model"], scene, TILE_SIZE, OVERLAP, DEVICE,
         _state["lr_ranges"], _state["hr_ranges"], uncertainty=False,
     )
-
-    # second pass, uncertainty model -- confidence map only, its own SR
-    # image is discarded (SwinIR's is the one we show, D020/D029)
-    _, std_scene = run_sr_inference(
+    edsr_mean, edsr_std = run_sr_inference(
         _state["uncertainty_model"], scene, TILE_SIZE, OVERLAP, DEVICE,
         _state["lr_ranges"], _state["hr_ranges"], uncertainty=True,
     )
-    uncertainty_preview = _heatmap_png_base64(std_scene.mean(axis=0))
+    uncertainty_preview = _heatmap_png_base64(edsr_std.mean(axis=0))
+
+    # D038: confidence-weighted fusion beats either model alone on every
+    # metric across the full validation set -- this is what we serve now,
+    # not raw SwinIR
+    sr_scene, _ = confidence_weighted_fuse(edsr_mean, edsr_std, swinir_out)
 
     # Metrics need a ground-truth HR reference -- only computed if the user
     # provided one (e.g. a dataset hr.tif). Never fabricated otherwise.

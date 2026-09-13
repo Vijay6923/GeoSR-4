@@ -441,6 +441,18 @@ Scientific recommendation (agar aage badhte hain): synthetic data ko **directly 
 
 ---
 
+## D035 — Added mixed-precision (AMP) training to actually use T4's Tensor Cores
+**Date:** 2026-09-13
+**Decision:** User ne T4 par chalane ka decide kiya (P100 recommendation ke bawajood). Diya gaya reasoning tha: humara script plain FP32 mein train karta hai, jisme P100 (no Tensor Cores, but higher raw FP32 throughput) T4 se generally fast hota — T4 ka real advantage Tensor Cores hain, jo sirf mixed-precision (FP16) training mein kaam aate hain. To `train_edsr_uncertainty.py` mein `--amp` flag add kiya (`torch.autocast` + `torch.amp.GradScaler`), taaki T4 apni asli strength use kare.
+
+Numerical safety: model ka forward pass fp16 (autocast) ke andar chalta hai (Tensor Core speedup ke liye), lekin loss computation (Gaussian NLL, jisme `exp()` aur division hai) explicitly `.float()` cast karke fp32 mein hi hota hai — kyunki is loss ka pehle se hi instability history hai (D016: high-LR par diverge karta hai) aur fp16 mein exp()/division extra risk add karta.
+**Verification**: Local CPU par dono paths test kiye — (1) `--amp` flag ke bina (baseline behavior unchanged), (2) `--amp` flag ke saath but CUDA na hone ki wajah se automatically no-op ho jaata hai ("--amp requested but no CUDA device" warning ke saath) aur exact same tarike se chalta hai jaise flag na diya ho. **Honest limitation**: actual CUDA fp16 autocast path yahan CPU-only machine par test nahi ho sakta — real verification sirf Kaggle T4 par chalane ke baad hoga. User ko explicitly bataya gaya hai training ke shuru mein loss values monitor karne ke liye (nan/inf dikhe to turant batana).
+**Reasoning:** User ne khud T4 choose kiya apne reasons se — code ko us choice ke hisaab se genuinely better banaya (sirf "T4 chalega" nahi, "T4 ka fayda uthayega") bajaye sirf slower-as-is chalne dene ke.
+**Alternatives considered:** Multi-GPU (Kaggle ka T4 x2 dono GPUs use karna via DataParallel) — abhi nahi kiya, kyunki model chhota hai (EDSR ~1.5M params) aur DataParallel ka communication-overhead is scale par gains ko eat kar sakta hai; AMP ka fayda zyada direct/kam-risk tha.
+**Status:** Accepted, CPU-path verified. Real GPU/fp16 verification Kaggle run ke baad (user action).
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

@@ -35,6 +35,10 @@ def parse_args():
     p.add_argument("--n-channels", type=int, default=64)
     p.add_argument("--checkpoint-dir", type=str, default="experiments/edsr_uncertainty")
     p.add_argument("--log-every", type=int, default=10)
+    p.add_argument("--amp", action="store_true",
+                    help="mixed-precision training (uses GPU Tensor Cores, e.g. on T4) -- "
+                         "no-op on CPU. Loss (exp/division in Gaussian NLL) is still computed "
+                         "in float32 for numerical stability; only the model forward pass runs fp16.")
     return p.parse_args()
 
 
@@ -73,6 +77,11 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     nll_loss = nn.GaussianNLLLoss()
 
+    amp_enabled = args.amp and args.device == "cuda"
+    scaler = torch.amp.GradScaler("cuda", enabled=amp_enabled)
+    if args.amp and not amp_enabled:
+        print("--amp requested but no CUDA device -- running in plain fp32 (no-op on CPU)")
+
     os.makedirs(args.checkpoint_dir, exist_ok=True)
 
     step = 0
@@ -82,15 +91,24 @@ def main():
             lr = batch["lr"].to(args.device)
             hr = batch["hr"].to(args.device)
 
-            out = model(lr)
+            optimizer.zero_grad()
+
+            with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=amp_enabled):
+                out = model(lr)
+
+            # loss (exp/division in Gaussian NLL) computed in fp32 regardless --
+            # mixed precision here risks numerical instability on top of the
+            # gradient-explosion history this loss already has (D016/D025)
+            out = out.float()
             mean, log_var = split_mean_logvar(out)
             var = torch.exp(log_var)
             loss = nll_loss(mean, hr, var)
 
-            optimizer.zero_grad()
-            loss.backward()
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)  # so clip_grad_norm_ sees true (unscaled) gradients
             grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
-            optimizer.step()
+            scaler.step(optimizer)
+            scaler.update()
 
             if step % args.log_every == 0:
                 print(f"epoch {epoch} step {step} loss {loss.item():.4f} grad_norm {grad_norm:.4f}")

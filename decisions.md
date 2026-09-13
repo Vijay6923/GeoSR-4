@@ -453,6 +453,29 @@ Numerical safety: model ka forward pass fp16 (autocast) ke andar chalta hai (Ten
 
 ---
 
+## D036 — Uncertainty training complete (real Colab run): positive but modest calibration
+**Date:** 2026-09-13
+**Decision:** Phase 6 (heteroscedastic uncertainty, D016/D018) ka pehla real GPU training run complete hua — 20 epochs, full train split (2,283 pairs), Colab T4, `--amp` (D035) ke saath. Koi crash nahi, poori training stable rahi (grad_norm 4-222 ke beech fluctuate kiya, lekin clipping ne hamesha apna kaam kiya, kabhi diverge nahi hua).
+
+**Full validation-set (n=279) final results:**
+
+| Metric | Value |
+|---|---|
+| PSNR | 16.80 dB |
+| SSIM | 0.443 |
+| SAM | 11.90° |
+| ERGAS | 15.06 (median 8.87) |
+| **Calibration** | **0.206 (std 0.193)** |
+
+Reconstruction quality dusre trained models (EDSR 16.77, SwinIR 16.92) ke comparable hai — uncertainty head ne quality meaningfully hurt nahi ki. **Calibration genuinely positive hai** (fake/random nahi) — jahan model "confident nahi hoon" bolta hai, wahan sach mein zyada error hota hai — lekin "ideal" threshold (>0.3-0.4) se kam hai, aur high std (0.193) batata hai ki calibration quality image-to-image kaafi vary karti hai (kuch patches par strong, kuch par weak).
+
+**Honest conclusion**: Uncertainty estimation genuinely kaam karta hai, ek modest/real signal ke roop mein — "strong/highly-reliable" ka daava nahi kar sakte. Training ke dauraan bhi yehi pattern dikha — calibration number 20 epochs mein steadily improve nahi hua (PSNR/SSIM ki tarah), balki 0.13-0.28 ke beech bounce karta raha.
+**Reasoning:** Yeh Phase 6 ka pehla genuine, complete validation hai (ab tak sirf smoke-tested tha, D016/D018). Is result ko as-is report kar rahe hain — na overclaim, na underclaim.
+**Alternatives considered:** N/A — yeh planned training run tha, iska result jo bhi aata usko honestly report karna tha.
+**Status:** Accepted. **Phase 6 complete.** Checkpoint `experiments/edsr_uncertainty/edsr_unc_epoch19.pt` ready hai demo integration ke liye (uncertainty-map display) agar aage badhna ho.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.
@@ -464,9 +487,10 @@ Numerical safety: model ka forward pass fp16 (autocast) ke andar chalta hai (Ten
 - ~~**ERGAS outlier investigation**~~ **RESOLVED (D015)**: `ROI_05939` ka ek band (index 2) ka mean sirf 0.0075 hai (likely water/shadow, near-zero reflectance) — ERGAS formula `(RMSE/mean)²` hai per band, to near-zero denominator ek hi patch ka ERGAS 771.5 tak blow-up kar deta hai (median 11.66 ke against). Yeh ERGAS metric ki ek known limitation hai low-reflectance regions ke liye, code bug nahi. Fix: `run_baseline.py`/`evaluate_checkpoint.py` ab median bhi print karte hain mean ke saath, kyunki mean is tarah ke outliers ke against robust nahi hai.
 - **Scale SwinIR to match EDSR's parameter count** (from D013): Abhi SwinIR 2.2x chhota hai phir bhi tied hai. Bigger embed_dim ya deeper RSTBs try karna chahiye ek fairer max-capacity comparison ke liye, before final "which architecture wins" call lena.
 - **Tune λ_spectral / λ_edge** (from D014): 0.1/0.1 sirf ek starting guess hai. Pehla ablation result dekhne ke baad (better/worse/same), agar promising lage to proper sweep (jaise 0.05/0.1/0.5/1.0) karna chahiye final numbers ke liye.
-- **Uncertainty warm-start** (from D016): Agar Colab par full-scale (2,283 pairs, 20 epochs) heteroscedastic training mein bhi instability dikhe (jo local 2-example test mein nahi dikha lr=1e-4 par, lekin bigger scale par naye patterns emerge ho sakte hain), to warm-start approach try karna — pehle plain-L1 EDSR se weights load karke, phir NLL ke saath fine-tune karna.
+- ~~**Uncertainty warm-start**~~ **RESOLVED (D036)**: Full-scale Colab run bina warm-start ke hi stable raha (grad clipping + amp dono ne kaam kiya) — warm-start ki zaroorat nahi padi.
 - ~~**SwinIR tiled inference**~~ **RESOLVED (D018)**.
 - ~~**Uncertainty map GeoTIFF output**~~ **RESOLVED (D018)**.
-- **Uncertainty calibration on a real-trained checkpoint** (from D018): Abhi tak sirf 4-step smoke-test checkpoint se test hua hai (expected-bad numbers). Colab ke actual 20-epoch uncertainty run ke baad, `uncertainty_calibration()` (D016) ka real number dekhna hai — kya std genuinely error se correlate karta hai.
+- ~~**Uncertainty calibration on a real-trained checkpoint**~~ **RESOLVED (D036)**: Real calibration = 0.206 (std 0.193, n=279) — genuinely positive, modest signal, not a strong one.
+- **Wire uncertainty map into the live demo** (from D036): Checkpoint ready hai, lekin backend abhi bhi SwinIR (D020/D029, better visual quality) serve karta hai, uncertainty-EDSR nahi. Decide karna hai: dual-inference (dono model chalana) ya kisi aur tarike se confidence map dikhana.
 - ~~**PixelShuffle checkerboard artifact fix**~~ **RESOLVED (D023-D025, verified D029)**.
 - **Isolate perceptual-loss vs ICNR-init contribution** (from D029): Dono ek saath bundle kiye the time-constraint ki wajah se. Agar precise attribution chahiye (kaun sa fix asli sharpness improvement de raha hai), do alag Colab runs chahiye — abhi combined effect hi verified hai.

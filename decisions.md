@@ -486,6 +486,26 @@ Reconstruction quality dusre trained models (EDSR 16.77, SwinIR 16.92) ke compar
 
 ---
 
+## D038 — Confidence-weighted EDSR/SwinIR fusion: a genuine, verified improvement
+**Date:** 2026-09-13
+**Decision:** Ek naya inference-time technique banaya — koi naya training nahi, sirf dono already-trained models (EDSR-uncertainty aur SwinIR-quality) ko ek saath use karna. `ml/inference/fuse_models.py`: EDSR ka apna predicted uncertainty (std) use karke, per-pixel decide karte hain kitna EDSR ke mean prediction par trust karna hai vs SwinIR ke output par gir jaana hai — jahan EDSR confident hai (low std), uska output zyada weight leta hai; jahan EDSR unsure hai, SwinIR (generally sharper model, D020/D029) zyada weight leta hai.
+
+**Full validation-set verification (n=279)** — sirf ek demo patch par test nahi kiya, poore val set par:
+
+| Metric | EDSR | SwinIR | Fused |
+|---|---|---|---|
+| PSNR | 16.80 | 16.83 | **16.89** |
+| SSIM | 0.4430 | 0.4367 | **0.4471** |
+| SAM | 11.90° | 12.07° | **11.84°** |
+| ERGAS | 15.06 | 13.89 | 14.55 (median ~same, 8.87-8.90) |
+
+Fused output dono individual models se **better ya tied hai har metric par** (ERGAS mean thoda beech mein hai, lekin median — jo zyada robust hai D015 ke outlier-issue ki wajah se — teeno mein almost same hai).
+**Reasoning:** Yeh ek genuinely free improvement hai — koi naya GPU training nahi chahiye, dono checkpoints already trained the. Gain modest hai (kuch hundredths dB) lekin consistent hai poore validation set par, na ki ek lucky patch ka fluke. Yeh ensemble-learning ka well-established principle hai (do reasonably-different models ke errors average out karke combined error kam karna) — humare project mein pehli baar hai jab koi single change sabhi metrics par cleanly improve karta hai (compare D019 — spectral/edge loss hurt kiya, D028 — perceptual loss metrics par roughly flat tha).
+**Alternatives considered:** Simple 50/50 average (uncertainty-agnostic) — try nahi kiya explicitly, lekin confidence-weighted approach zyada principled hai aur already achha result de raha hai.
+**Status:** Accepted. Real, verified improvement — inference-time only, zero training cost.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

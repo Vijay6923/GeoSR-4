@@ -28,6 +28,7 @@ MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB -- fine for demo-size patches, not 
 TILE_SIZE = 121
 OVERLAP = 16
 CHECKPOINT_PATH = "experiments/swinir_quality/swinir_epoch29.pt"  # D029: perceptual+ICNR, visibly sharper texture
+UNCERTAINTY_CHECKPOINT_PATH = "experiments/edsr_uncertainty/edsr_unc_epoch19.pt"  # D036
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 app = FastAPI(title="GeoSR-4 API")
@@ -46,17 +47,37 @@ def load_model():
     model = build_model("swinir", embed_dim=60, depths="2,2,2,2", num_heads=6, window_size=11).to(DEVICE)
     model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=DEVICE))
     model.eval()
+
+    # second model, dual-inference (D036): SwinIR gives the sharp image,
+    # this EDSR-uncertainty model gives the confidence map -- not the same
+    # architecture as the pretty-image model, so run separately
+    uncertainty_model = build_model("edsr", uncertainty=True, n_blocks=16, n_channels=64).to(DEVICE)
+    uncertainty_model.load_state_dict(torch.load(UNCERTAINTY_CHECKPOINT_PATH, map_location=DEVICE))
+    uncertainty_model.eval()
+
     lr_ranges, hr_ranges = load_norm_stats()
     _state["model"] = model
+    _state["uncertainty_model"] = uncertainty_model
     _state["lr_ranges"] = lr_ranges
     _state["hr_ranges"] = hr_ranges
-    print(f"model loaded on {DEVICE}")
+    print(f"models loaded on {DEVICE}")
 
 
 def _png_base64(rgb_array: np.ndarray) -> str:
     import matplotlib.pyplot as plt
     buf = io.BytesIO()
     plt.imsave(buf, rgb_array, format="png")
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def _heatmap_png_base64(values: np.ndarray) -> str:
+    """values: (H,W) float array, any scale -- min-max stretched per-image
+    (this is a display heatmap, not a value comparable across requests)."""
+    import matplotlib.pyplot as plt
+    lo, hi = values.min(), values.max()
+    stretched = (values - lo) / (hi - lo + 1e-8)
+    buf = io.BytesIO()
+    plt.imsave(buf, stretched, format="png", cmap="inferno")
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
@@ -89,6 +110,14 @@ async def infer(file: UploadFile = File(...), hr_reference: Optional[UploadFile]
         _state["lr_ranges"], _state["hr_ranges"], uncertainty=False,
     )
 
+    # second pass, uncertainty model -- confidence map only, its own SR
+    # image is discarded (SwinIR's is the one we show, D020/D029)
+    _, std_scene = run_sr_inference(
+        _state["uncertainty_model"], scene, TILE_SIZE, OVERLAP, DEVICE,
+        _state["lr_ranges"], _state["hr_ranges"], uncertainty=True,
+    )
+    uncertainty_preview = _heatmap_png_base64(std_scene.mean(axis=0))
+
     # Metrics need a ground-truth HR reference -- only computed if the user
     # provided one (e.g. a dataset hr.tif). Never fabricated otherwise.
     metrics = None
@@ -116,6 +145,7 @@ async def infer(file: UploadFile = File(...), hr_reference: Optional[UploadFile]
     return {
         "input_preview_png": input_preview,
         "output_preview_png": output_preview,
+        "uncertainty_preview_png": uncertainty_preview,
         "output_geotiff": output_geotiff_b64,
         "input_shape": list(scene.shape),
         "output_shape": list(sr_scene.shape),
@@ -127,4 +157,9 @@ async def infer(file: UploadFile = File(...), hr_reference: Optional[UploadFile]
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "model_loaded": "model" in _state, "device": DEVICE}
+    return {
+        "status": "ok",
+        "model_loaded": "model" in _state,
+        "uncertainty_model_loaded": "uncertainty_model" in _state,
+        "device": DEVICE,
+    }

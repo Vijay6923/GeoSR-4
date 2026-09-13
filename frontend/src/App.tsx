@@ -6,6 +6,7 @@ import MetricsPanel from './components/MetricsPanel'
 interface InferResponse {
   input_preview_png: string
   output_preview_png: string
+  uncertainty_preview_png: string
   output_geotiff: string
   input_shape: number[]
   output_shape: number[]
@@ -205,6 +206,24 @@ function App() {
                   No ground-truth reference provided -- accuracy metrics unavailable for this image.
                 </p>
               )}
+            </div>
+
+            <div className="mt-7">
+              <div className="mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-700">Model confidence</h3>
+                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                  where the model is unsure
+                </span>
+              </div>
+              <img
+                src={`data:image/png;base64,${result.uncertainty_preview_png}`}
+                alt="Per-pixel uncertainty heatmap"
+                className="w-full rounded-lg border border-slate-200"
+              />
+              <p className="mt-2 text-center text-xs text-slate-400">
+                Brighter = lower confidence. Reconstructed detail is an inference, not a direct observation --
+                sharp edges (roads, building outlines) are typically where the model is least certain.
+              </p>
             </div>
           </div>
         )}

@@ -476,6 +476,16 @@ Reconstruction quality dusre trained models (EDSR 16.77, SwinIR 16.92) ke compar
 
 ---
 
+## D037 — Uncertainty map wired into the live demo (dual-inference)
+**Date:** 2026-09-13
+**Decision:** Backend ab do models load karta hai startup par — SwinIR (D029, sharp image ke liye) aur EDSR-uncertainty (D036, confidence map ke liye). `/api/infer` dono ko same input par chalata hai, SwinIR ka SR output dikhata hai (jaisa pehle) aur uncertainty model ka std output ek heatmap (inferno colormap, per-band-averaged, per-request min-max stretched) ke roop mein third panel mein show karta hai. Frontend mein "Model confidence" section add kiya jo yeh heatmap dikhata hai with explanation.
+**Verification**: Backend restart kiya, `/api/health` se dono models load hone ka confirm kiya. Real upload test kiya poore proxy path (5173→8000) se — response mein `uncertainty_preview_png` present tha. Decoded PNG ko standalone verification (jo isi turn mein pehle ki thi, D036 ke baad) se compare kiya — same road-network-highlighted pattern dikha, confirming backend integration sahi hai.
+**Reasoning:** Dual-inference isliye chuna (single unified model ki jagah) kyunki SwinIR (best visual quality, D020/D029) aur EDSR-uncertainty (confidence map ke liye trained) alag architectures hain — dono ko ek saath train karna abhi tak nahi kiya gaya. Cost: ek request ab ~2.5s leta hai (pehle ~1s tha, do model chalane ki wajah se) — demo-scale single-patch requests ke liye still fast enough.
+**Alternatives considered:** Sirf ek model (jaisa EDSR-uncertainty) poore demo ke liye use karna — reject kiya kyunki SwinIR ka visual quality (D029 ke baad) uncertainty-EDSR se behtar hai, aur dono capabilities (sharp image + confidence map) saath dikhana zyada valuable hai.
+**Status:** Accepted. Phase 6 (uncertainty) ab poori tarah demo mein integrated hai — trained, validated, aur live application mein dikh raha hai.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.
@@ -491,6 +501,6 @@ Reconstruction quality dusre trained models (EDSR 16.77, SwinIR 16.92) ke compar
 - ~~**SwinIR tiled inference**~~ **RESOLVED (D018)**.
 - ~~**Uncertainty map GeoTIFF output**~~ **RESOLVED (D018)**.
 - ~~**Uncertainty calibration on a real-trained checkpoint**~~ **RESOLVED (D036)**: Real calibration = 0.206 (std 0.193, n=279) — genuinely positive, modest signal, not a strong one.
-- **Wire uncertainty map into the live demo** (from D036): Checkpoint ready hai, lekin backend abhi bhi SwinIR (D020/D029, better visual quality) serve karta hai, uncertainty-EDSR nahi. Decide karna hai: dual-inference (dono model chalana) ya kisi aur tarike se confidence map dikhana.
+- ~~**Wire uncertainty map into the live demo**~~ **RESOLVED (D037)**: Dual-inference (SwinIR + EDSR-uncertainty) backend/frontend mein live hai.
 - ~~**PixelShuffle checkerboard artifact fix**~~ **RESOLVED (D023-D025, verified D029)**.
 - **Isolate perceptual-loss vs ICNR-init contribution** (from D029): Dono ek saath bundle kiye the time-constraint ki wajah se. Agar precise attribution chahiye (kaun sa fix asli sharpness improvement de raha hai), do alag Colab runs chahiye — abhi combined effect hi verified hai.

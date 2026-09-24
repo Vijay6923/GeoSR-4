@@ -85,8 +85,16 @@ def _heatmap_png_base64(values: np.ndarray) -> str:
     im = ax.imshow(values, cmap="inferno")
     ax.axis("off")
     cbar = fig.colorbar(im, ax=ax, orientation="horizontal", fraction=0.05, pad=0.03)
-    cbar.set_label("predicted std (normalized reflectance units)", fontsize=7)
+    # tick labels double as plain-language anchors at the extremes -- low std
+    # = model is confident, high std = model is unsure (D043)
+    lo, hi = float(values.min()), float(values.max())
+    ticks = np.linspace(lo, hi, 5)
+    cbar.set_ticks(ticks)
+    cbar.set_ticklabels(
+        [f"{ticks[0]:.0f}\nConfident"] + [f"{t:.0f}" for t in ticks[1:-1]] + [f"{ticks[-1]:.0f}\nUncertain"]
+    )
     cbar.ax.tick_params(labelsize=6)
+    cbar.set_label("predicted std (raw pixel-value units, same scale as input GeoTIFF)", fontsize=7)
 
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight", pad_inches=0.05)

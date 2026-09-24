@@ -602,6 +602,21 @@ Frontend caption bhi update kiya — pehle sirf "Brighter = lower confidence" th
 
 ---
 
+---
+
+## D045 — Full UI visual redesign: dark "mission-control" theme, wide dashboard layout
+**Date:** 2026-09-25
+**Decision:** D044 ke baad user ne clarify kiya ki asli "boring" complaint overall UI visual design ke baare mein thi (light slate/emerald SaaS look, narrow centered column, generic feel), koi missing feature nahi. Isse properly solve karne ke liye pehle Artifact tool se ek standalone mockup banaya (do artboards: Upload state + Results state) taaki real app touch karne se pehle direction approve ho sake — user ne "sahi hai go ahead" bola, phir implement kiya.
+
+Direction: dark navy/charcoal theme (`#0a0e14` bg, layered surface tones), signal-orange accent (`#ff7a45`) + cyan secondary (`#22d3ee`) — "satellite mission-control" feel, generic emerald-on-slate SaaS look se door. Typography: Space Grotesk (headings/buttons), IBM Plex Sans (body), IBM Plex Mono (numbers/technical readouts jaise metrics, resolution, file size) — Inter/Roboto/Arial jaisa generic AI-tool look explicitly avoid kiya. Layout: narrow `max-w-5xl` centered column se wide two-column dashboard (360px sidebar + flexible main area) mein badla, taaki desktop width ka use ho.
+
+Files change: `index.html` (Google Fonts links), `src/index.css` (color tokens as CSS variables, `@theme` font-family tokens for Tailwind v4), `App.tsx` (poora layout rewrite, naya `TopBar` component), `Dropzone.tsx`, `MetricsPanel.tsx`, `BeforeAfterSlider.tsx` (sab dark-theme colors + naye tokens use karne ke liye update).
+**Verification:** `tsc -b` clean pass hua. Vite dev server HMR se saari files live-update hui, koi console error nahi (dev server log check kiya). Visual browser check user khud karega.
+**Reasoning:** Mockup-first approach (D044 ki galti se seekha) — visual taste subjective hota hai, real code se pehle disposable preview approve karwana safer hai bina baar-baar wrong-direction implementation ke.
+**Status:** Code ready, typecheck clean. User verify karega browser mein.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

@@ -15,18 +15,20 @@ const METRIC_INFO: { key: keyof Metrics; label: string; full: string; direction:
 export default function MetricsPanel({ metrics }: { metrics: Metrics }) {
   return (
     <div>
-      <div className="mb-3 flex items-center gap-2">
-        <h3 className="text-sm font-semibold text-slate-700">Accuracy vs. ground truth</h3>
-        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">measured, not estimated</span>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <p className="font-mono text-[10.5px] tracking-[0.08em] text-[var(--text-faint)] uppercase">Validation metrics</p>
+        <span className="rounded-full bg-[var(--good)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--good)]">
+          ground truth provided
+        </span>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3">
         {METRIC_INFO.map(({ key, label, full, direction, format }) => (
-          <div key={key} className="group relative rounded-lg border border-slate-200 bg-white p-4 text-center transition-shadow hover:shadow-sm">
-            <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase" title={full}>
+          <div key={key} className="rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface-2)] p-3.5">
+            <p className="text-[11.5px] text-[var(--text-dim)]" title={full}>
               {label}
             </p>
-            <p className="mt-1.5 text-2xl font-semibold text-slate-900 tabular-nums">{format(metrics[key])}</p>
-            <p className="mt-1 text-[11px] text-slate-400">{direction}</p>
+            <p className="mt-0.5 font-mono text-[25px] text-[var(--text)] tabular-nums">{format(metrics[key])}</p>
+            <p className="mt-0.5 text-[10.5px] text-[var(--text-faint)]">{direction}</p>
           </div>
         ))}
       </div>

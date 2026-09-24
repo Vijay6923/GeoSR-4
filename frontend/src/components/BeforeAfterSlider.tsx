@@ -11,7 +11,7 @@ export default function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel, af
   const [pos, setPos] = useState(50) // percent, 0 = all "after", 100 = all "before"
 
   return (
-    <div className="relative w-full select-none overflow-hidden rounded-lg border border-slate-200 shadow-sm">
+    <div className="relative w-full select-none overflow-hidden rounded-xl border border-[var(--border-soft)]">
       {/* base layer: after (SR output), fills the whole container */}
       <img src={afterSrc} alt={afterLabel} className="block w-full" draggable={false} />
 
@@ -25,7 +25,7 @@ export default function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel, af
         className="pointer-events-none absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.4)]"
         style={{ left: `${pos}%` }}
       >
-        <div className="absolute top-1/2 left-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-slate-600 shadow-lg ring-1 ring-black/5">
+        <div className="absolute top-1/2 left-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[var(--surface)] shadow-lg ring-1 ring-black/10">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M8 6l-6 6 6 6M16 6l6 6-6 6" />
           </svg>
@@ -33,10 +33,10 @@ export default function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel, af
       </div>
 
       {/* labels */}
-      <div className="pointer-events-none absolute top-3 left-3 rounded-md bg-black/55 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
+      <div className="pointer-events-none absolute top-3 left-3 rounded-md bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
         {beforeLabel}
       </div>
-      <div className="pointer-events-none absolute top-3 right-3 rounded-md bg-emerald-600/85 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
+      <div className="pointer-events-none absolute top-3 right-3 rounded-md bg-[var(--accent)]/90 px-2.5 py-1 text-xs font-medium text-[var(--bg)] backdrop-blur-sm">
         {afterLabel}
       </div>
 

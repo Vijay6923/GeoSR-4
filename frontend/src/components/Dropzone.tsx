@@ -3,7 +3,7 @@ import { useRef, useState } from 'react'
 interface DropzoneProps {
   file: File | null
   onFileSelect: (file: File | null) => void
-  label: string
+  label?: string
   hint?: string
   compact?: boolean
 }
@@ -25,8 +25,8 @@ export default function Dropzone({ file, onFileSelect, label, hint, compact }: D
 
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700">{label}</label>
-      {hint && <p className="mt-0.5 text-xs text-slate-400">{hint}</p>}
+      {label && <label className="block text-sm font-medium text-[var(--text-dim)]">{label}</label>}
+      {hint && <p className="mt-0.5 text-xs text-[var(--text-faint)]">{hint}</p>}
 
       <div
         onClick={() => inputRef.current?.click()}
@@ -40,12 +40,10 @@ export default function Dropzone({ file, onFileSelect, label, hint, compact }: D
           setDragOver(false)
           pickFile(e.dataTransfer.files)
         }}
-        className={`mt-2 flex cursor-pointer items-center gap-3 rounded-lg border-2 border-dashed px-4 transition-colors ${compact ? 'py-2.5' : 'py-5'} ${
+        className={`${label || hint ? 'mt-2' : ''} flex cursor-pointer items-center gap-3 rounded-[10px] border-[1.5px] border-dashed px-4 transition-colors ${compact ? 'py-2.5' : 'py-6'} ${
           dragOver
-            ? 'border-emerald-400 bg-emerald-50'
-            : file
-              ? 'border-slate-300 bg-slate-50'
-              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+            ? 'border-[var(--cyan)] bg-[var(--cyan-soft)]'
+            : 'border-[var(--border-c)] bg-[var(--surface-2)] hover:border-[var(--text-faint)]'
         }`}
       >
         <input
@@ -56,8 +54,8 @@ export default function Dropzone({ file, onFileSelect, label, hint, compact }: D
           className="hidden"
         />
 
-        <div className={`flex ${compact ? 'h-8 w-8' : 'h-10 w-10'} shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500`}>
-          <svg width={compact ? 16 : 18} height={compact ? 16 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className={`flex ${compact ? 'h-8 w-8' : 'h-10 w-10'} shrink-0 items-center justify-center text-[var(--cyan)]`}>
+          <svg width={compact ? 16 : 20} height={compact ? 16 : 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             <polyline points="17 8 12 3 7 8" />
             <line x1="12" y1="3" x2="12" y2="15" />
@@ -67,12 +65,12 @@ export default function Dropzone({ file, onFileSelect, label, hint, compact }: D
         <div className="min-w-0 flex-1">
           {file ? (
             <>
-              <p className="truncate text-sm font-medium text-slate-800">{file.name}</p>
-              <p className="text-xs text-slate-400">{formatBytes(file.size)}</p>
+              <p className="truncate font-mono text-sm text-[var(--text)]">{file.name}</p>
+              <p className="text-xs text-[var(--text-faint)]">{formatBytes(file.size)}</p>
             </>
           ) : (
-            <p className="text-sm text-slate-500">
-              <span className="font-medium text-slate-700">Click to browse</span> or drag a GeoTIFF here
+            <p className="text-sm text-[var(--text-dim)]">
+              <span className="font-medium text-[var(--text)]">Click to browse</span> or drag a GeoTIFF here
             </p>
           )}
         </div>
@@ -84,7 +82,7 @@ export default function Dropzone({ file, onFileSelect, label, hint, compact }: D
               onFileSelect(null)
               if (inputRef.current) inputRef.current.value = ''
             }}
-            className="shrink-0 rounded-full p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600"
+            className="shrink-0 rounded-full p-1 text-[var(--text-faint)] hover:bg-[var(--border-c)] hover:text-[var(--text)]"
             aria-label="Remove file"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

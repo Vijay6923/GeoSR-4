@@ -617,6 +617,25 @@ Files change: `index.html` (Google Fonts links), `src/index.css` (color tokens a
 
 ---
 
+---
+
+## D046 — Multi-page sidebar navigation, kuch pages honestly "Coming soon"
+**Date:** 2026-09-25
+**Decision:** User ne ek reference screenshot diya (GeoSRM-style dashboard: left sidebar nav, multiple pages -- Home, Upload & Enhance, Compare View, Analysis Tools, Applications submenu with Urban Analysis/Crop Monitoring/Disaster Assessment/Change Detection, Model Insights, Uncertainty Map, Downloads) aur poora structure copy karne ko bola. Maine flag kiya ki isme kai features hain jo hamare app mein actually exist nahi karte — user ne explicitly confirm kiya "poora structure copy karo" (placeholder pages OK hain).
+
+Implement kiya: naya `Sidebar.tsx` (collapsible "Applications" submenu), light client-side routing (`useState<Page>` App.tsx mein, koi react-router nahi -- app itna simple hai ki extra dependency ki zaroorat nahi). State (`file`, `hrFile`, `result`, etc.) App.tsx mein lift kiya taaki Compare View/Uncertainty Map/Downloads pages last result access kar sakein.
+
+**Real pages** (existing functionality reuse karte hain): Home (landing + use-case list, "live" vs "planned" labeled honestly), Upload & Enhance (poora existing flow, jaisa tha), Compare View (last result ka before/after, empty state agar result nahi hai), Uncertainty Map (last result ka heatmap + explanation), Downloads (GeoTIFF download), Model Insights (**real numbers** decisions.md se -- D038 fusion metrics 16.89dB/0.4471/11.84°, D036 calibration r≈0.21 -- fabricated nahi).
+
+**Honestly-labeled stub pages** (Analysis Tools + 4 Applications items: Urban Analysis, Crop Monitoring, Disaster Assessment, Change Detection): koi in mein se implement nahi hai (D033 mein downstream-task validation try kiya tha, abandon kar diya tha). In pages par saaf "Coming soon" badge + explicit text hai ki "hum yahan fake numbers ya results nahi dikhate" — reference image jaisa fake data/charts nahi dikhaya.
+
+**Do cheezein reference se deliberately drop ki**: (1) top bar ka location search box -- koi backend location-search functionality nahi hai, fake/dead UI banata; (2) map-style viewer (zoom controls, live lat/lon readout, scale bar) -- backend abhi `/api/infer` response mein CRS/coordinate info return nahi karta, to yeh add karne ke liye real backend change chahiye hoga, hardcoded fake coordinates dikhana misleading hota.
+**Verification:** `tsc -b` clean pass hua. Dev server ne cleanly HMR update liya, `curl` se page 200 return kiya. Visual browser check user khud karega.
+**Reasoning:** Full nav structure se demo ka "breadth of vision" dikhta hai (SIH panel ke liye valuable), lekin project ki core honesty principle (kabhi fabricated result nahi dikhana) maintain rakhi -- roadmap items clearly labeled hain, fake data kahin nahi hai.
+**Status:** Code ready, typecheck clean. User verify karega browser mein.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

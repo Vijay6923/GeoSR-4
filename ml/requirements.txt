@@ -4,3 +4,4 @@ torchvision
 numpy
 huggingface_hub
 scikit-image
+transformers

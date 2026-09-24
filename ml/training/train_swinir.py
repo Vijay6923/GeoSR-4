@@ -17,6 +17,7 @@ from ml.evaluation.metrics import compute_all_metrics
 from ml.losses.spectral import SpectralAngleLoss
 from ml.losses.edge import EdgeLoss
 from ml.losses.perceptual import VGGPerceptualLoss
+from ml.losses.perceptual_dino import DINOPerceptualLoss, DEFAULT_MODEL_ID as DEFAULT_DINO_MODEL_ID
 
 ROOT = "ml/datasets/raw/sen2naip/cross-sensor/extracted/cross-sensor"
 
@@ -36,7 +37,14 @@ def parse_args():
     p.add_argument("--log-every", type=int, default=10)
     p.add_argument("--lambda-spectral", type=float, default=0.0, help="PRD section 34-35, 0 = L1 only (baseline)")
     p.add_argument("--lambda-edge", type=float, default=0.0, help="PRD section 37, 0 = L1 only (baseline)")
-    p.add_argument("--lambda-perceptual", type=float, default=0.0, help="PRD section 36, VGG perceptual loss -- see decisions.md D023")
+    p.add_argument("--lambda-perceptual", type=float, default=0.0, help="PRD section 36, perceptual loss -- see decisions.md D023")
+    p.add_argument("--perceptual-backbone", type=str, default="vgg", choices=["vgg", "dino"],
+                    help="which frozen network to compare features against for the perceptual loss -- "
+                         "'vgg' (default, D023) or 'dino' (DINOv2/DINOv3, see decisions.md D042)")
+    p.add_argument("--dino-model-id", type=str, default=DEFAULT_DINO_MODEL_ID,
+                    help="HF model id for --perceptual-backbone dino. Defaults to the free DINOv2 checkpoint; "
+                         "pass 'facebook/dinov3-vitl16-pretrain-sat493m' once gated access is approved "
+                         "(requires `huggingface-cli login` with an approved token -- D042)")
     p.add_argument("--no-icnr-init", action="store_true",
                     help="disable ICNR upsample init (random init instead) -- D040 ablation only, "
                          "isolates ICNR's contribution from the perceptual loss's. Leave ICNR on otherwise.")
@@ -85,9 +93,15 @@ def main():
     l1_loss = nn.L1Loss()
     spectral_loss = SpectralAngleLoss().to(args.device)
     edge_loss = EdgeLoss().to(args.device)
-    perceptual_loss = VGGPerceptualLoss().to(args.device) if args.lambda_perceptual > 0 else None
+    perceptual_loss = None
+    if args.lambda_perceptual > 0:
+        if args.perceptual_backbone == "dino":
+            perceptual_loss = DINOPerceptualLoss(args.dino_model_id).to(args.device)
+        else:
+            perceptual_loss = VGGPerceptualLoss().to(args.device)
 
-    print(f"loss: L1 + {args.lambda_spectral} * spectral + {args.lambda_edge} * edge + {args.lambda_perceptual} * perceptual")
+    print(f"loss: L1 + {args.lambda_spectral} * spectral + {args.lambda_edge} * edge + "
+          f"{args.lambda_perceptual} * perceptual ({args.perceptual_backbone})")
 
     amp_enabled = args.amp and args.device == "cuda"
     scaler = torch.amp.GradScaler("cuda", enabled=amp_enabled)

@@ -543,6 +543,21 @@ Isse ek clean 2x2 grid milta hai: D013 (dono off), D028 (dono on), 7a (sirf ICNR
 
 ---
 
+---
+
+## D042 — DINOv2/DINOv3 perceptual loss backbone added (pluggable, VGG default unchanged)
+**Date:** 2026-09-25
+**Decision:** `ml/losses/perceptual_dino.py` mein naya `DINOPerceptualLoss` class banaya — `VGGPerceptualLoss` jaisa hi structure (frozen backbone, RGB bands only D006, L1 distance features ke beech), lekin backbone ek HF `transformers` model (`AutoModel.from_pretrained(model_id)`) hai, VGG ki jagah. `train_swinir.py` mein `--perceptual-backbone {vgg,dino}` aur `--dino-model-id` flags add kiye — default `vgg` hai (D023 se koi behavior change nahi, backward compatible), `dino` opt-in hai.
+
+**Domain-mismatch ka asli angle:** VGG ImageNet (natural photos) par trained hai — Sentinel-2 satellite imagery se domain mismatch hai (D023 mein already note kiya gaya tha). Research karte hue pata chala Meta ne DINOv3 ka ek variant **SAT-493M (satellite imagery dataset) par bhi pretrain kiya hai** (`facebook/dinov3-vitl16-pretrain-sat493m`) — yeh VGG se kahi better domain-match hai humare use-case ke liye. Lekin yeh checkpoint **gated hai** (Meta license accept karna padta hai, manual approval jisme kuch din lag sakte hain).
+
+Isliye default checkpoint `facebook/dinov2-small` rakha — freely available (no gating), turant test ho sakta hai, lekin domain-mismatch VGG jaisa hi hai (yeh bhi natural-image pretrained hai). `model_id` parameter se DINOv3 sat493m checkpoint swap kiya ja sakega bina kisi aur code-change ke, jab gated access approve ho jaaye.
+**Verification:** Local CPU par 2 smoke tests kiye: (1) `DINOPerceptualLoss` standalone forward+backward — nonzero loss, real gradient (`grad norm 0.31`) confirm hua. (2) Poore `train_swinir.py` training loop se `--perceptual-backbone dino` flag ke saath (1 epoch, 4 samples) — clean chala. Regression check bhi kiya: `--perceptual-backbone vgg` (default) abhi bhi pehle jaisa hi kaam karta hai, koi change nahi.
+**Reasoning:** DINOv3-sat493m ka asli value satellite-domain pretraining hai, VGG se best comparison waha se hi milega — lekin gating ki wajah se abhi access nahi hai. Code ko pluggable bana kar approval ka wait block nahi karta — meanwhile DINOv2 se hi ablation start ho sakta hai (architecture upgrade ka isolated effect test karne ke liye, domain-match wala effect DINOv3 aane ke baad alag se measure hoga).
+**Status:** Code ready, smoke-tested. DINOv3 gated access request abhi submit karna baaki hai (HF account se manually karna hoga, apna login chahiye) — request ke baad approval mein kuch din lag sakte hain. Real training/ablation run bhi abhi baaki hai.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

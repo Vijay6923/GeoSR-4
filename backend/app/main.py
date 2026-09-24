@@ -72,13 +72,25 @@ def _png_base64(rgb_array: np.ndarray) -> str:
 
 
 def _heatmap_png_base64(values: np.ndarray) -> str:
-    """values: (H,W) float array, any scale -- min-max stretched per-image
-    (this is a display heatmap, not a value comparable across requests)."""
+    """values: (H,W) float predicted-std array, color-mapped per-request
+    (own min/max -- not comparable across requests) with a colorbar baked
+    into the image so the scale is a real number, not just relative
+    brightness -- see decisions.md D043 (previously had no legend at all)."""
+    import matplotlib
+    matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    lo, hi = values.min(), values.max()
-    stretched = (values - lo) / (hi - lo + 1e-8)
+
+    h, w = values.shape
+    fig, ax = plt.subplots(figsize=(w / 100, h / 100 + 0.5), dpi=100)
+    im = ax.imshow(values, cmap="inferno")
+    ax.axis("off")
+    cbar = fig.colorbar(im, ax=ax, orientation="horizontal", fraction=0.05, pad=0.03)
+    cbar.set_label("predicted std (normalized reflectance units)", fontsize=7)
+    cbar.ax.tick_params(labelsize=6)
+
     buf = io.BytesIO()
-    plt.imsave(buf, stretched, format="png", cmap="inferno")
+    fig.savefig(buf, format="png", bbox_inches="tight", pad_inches=0.05)
+    plt.close(fig)
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 

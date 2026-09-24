@@ -571,6 +571,19 @@ Isliye default checkpoint `facebook/dinov2-small` rakha — freely available (no
 
 ---
 
+---
+
+## D043 — Uncertainty heatmap ab legend/scale ke saath aata hai (pehle koi nahi tha)
+**Date:** 2026-09-25
+**Decision:** User ne flag kiya ki uncertainty map "samajh nahi aata" — root cause dekha to `_heatmap_png_base64` (`backend/app/main.py`) sirf `plt.imsave()` se raw colored array likh raha tha, **koi colorbar/legend/numeric scale nahi thi**. Viewer ko sirf relative brightness dikhta tha, actual std value pata nahi chalta tha. Isse `plt.subplots()` + `ax.imshow()` + `fig.colorbar()` mein badla — ab har heatmap PNG mein ek horizontal colorbar baked-in hai, real predicted-std units mein (0-1 stretch nahi, actual `imshow` auto-range).
+
+Frontend caption bhi update kiya — pehle sirf "Brighter = lower confidence" tha, ab calibration ki asli strength honestly bataya jaata hai ("measured calibration correlation ~0.21 on held-out data -- treat it as a rough guide, not a precise confidence score") — D036 ka apna number hai, spin nahi kiya.
+**Verification**: Synthetic array par standalone function test kiya (colorbar labels sahi render hue). Phir **real end-to-end test kiya** — backend+frontend dono start karke, real `/api/infer` call kiya ek actual val-set patch (`ROI_1320/lr.tif`) ke saath, response se uncertainty PNG decode karke dekha — real model ke real std values (17-84 range) ke saath colorbar sahi dikha. Frontend TypeScript compile clean hai (`tsc -b`); browser mein visual render khud verify nahi kiya (no screenshot tool available) -- yeh gap honestly note kar raha hoon.
+**Reasoning:** Yeh sirf cosmetic nahi tha — bina legend ke, uncertainty panel genuinely misleading ho sakta tha (koi bhi do scenes same jaisi bright/dark dikh sakti thi chahe unka actual uncertainty magnitude bahut alag ho, per-request min-max stretch ki wajah se). Legend add karne se panel ab actually interpretable hai, aur calibration-modest disclaimer se over-interpretation ka risk kam hota hai.
+**Status:** Backend + frontend dono commit ke liye ready. Visual browser check user ko khud karna hai.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

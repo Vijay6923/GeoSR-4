@@ -221,8 +221,10 @@ function App() {
                 className="w-full rounded-lg border border-slate-200"
               />
               <p className="mt-2 text-center text-xs text-slate-400">
-                Brighter = lower confidence. Reconstructed detail is an inference, not a direct observation --
-                sharp edges (roads, building outlines) are typically where the model is least certain.
+                Brighter = higher predicted uncertainty (see color scale above). Reconstructed detail is an
+                inference, not a direct observation -- sharp edges (roads, building outlines) are typically
+                where the model is least certain. This signal is real but modest (measured calibration
+                correlation ~0.21 on held-out data) -- treat it as a rough guide, not a precise confidence score.
               </p>
             </div>
           </div>

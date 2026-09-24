@@ -526,7 +526,20 @@ Do naye training configs banaye (Colab notebook mein section 7a/7b):
 Isse ek clean 2x2 grid milta hai: D013 (dono off), D028 (dono on), 7a (sirf ICNR), 7b (sirf perceptual) — bina D013/D028 dobara chalaye.
 **Verification**: `icnr_init` toggle ko directly test kiya (2x2 patch uniformity check, D023 jaisa) — `use_icnr_init=True` se std=0.0 (uniform), `False` se std=0.408 (random, non-uniform) — confirm hua toggle sahi kaam karta hai. Teeno relevant flag-combinations (default, `--no-icnr-init --lambda-perceptual`, default-again) local CPU par smoke-test kiye — sab clean chale.
 **Reasoning:** Ab tak ka combined result (D023-D029) genuinely achha tha, lekin attribution unclear thi — panel ko precise answer dena better hai "dono change kiye, pata nahi kaunsa kaam kiya" se.
-**Status:** Code + notebook ready. Real Colab runs pending (user action) — dono 20 epochs, protocol D013 se match karta hai.
+
+**Real result — 7a (ICNR-only), Kaggle run complete (2026-09-25), n=279:**
+
+| Metric | D013 baseline (dono off) | D028 combined (dono on) | 7a ICNR-only |
+|---|---|---|---|
+| PSNR | 16.92 dB | 16.83 dB | **16.54 dB** |
+| SSIM | 0.429 | 0.437 | 0.4301 |
+| SAM | 11.60° | 12.07° | **11.53°** |
+| ERGAS | 14.56 | 13.89 (median 8.90) | 16.79 (median 8.60) |
+
+**Honestly, yeh expected se different hai.** Hypothesis tha ICNR akela hi clear PSNR/quality win dega (deterministic, verified fix hai checkerboard artifact ke liye) — lekin isolated run mein PSNR baseline se **worse** hai (16.54 vs 16.92), SSIM roughly flat, sirf SAM thoda better hai. ERGAS mean bhi worse hai (median dono runs mein similar range mein hai, 8.6-8.9, to yeh D015 wale outlier-skew ka pattern lagta hai).
+
+**Ek real confound hai jo honestly flag karna zaroori hai**: yeh run `--amp` (mixed precision, D041) ke saath chala — D013 aur D028 dono runs `--amp` ke bina hue the (feature tab tak exist nahi karta tha). Toh yeh pure ICNR-vs-baseline comparison nahi hai, ek extra variable (amp) bhi saath mein badal gaya hai. Iska convergence par kitna effect hota hai, pata nahi — ek possible explanation hai is unexpected result ka, lekin confirm nahi hai (run-to-run random variance bhi ho sakta hai, single run hai, koi seed-repeat nahi kiya).
+**Status:** 7a complete, result mixed/surprising — ICNR akela clear-cut win nahi de raha (kam se kam is single run mein, amp confound ke saath). 7b (perceptual-only) abhi bhi chal raha hai — uska result aane do, phir dono ko saath mein interpret karenge. Attribution abhi bhi open hai.
 
 ---
 

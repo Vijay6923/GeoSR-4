@@ -587,6 +587,19 @@ Frontend caption bhi update kiya — pehle sirf "Brighter = lower confidence" th
 
 ---
 
+---
+
+## D044 — Before/after slider mein hover-to-zoom magnifier add kiya (full map integration nahi)
+**Date:** 2026-09-25
+**Decision:** Frontend "boring" feedback ka ek hissa yeh tha ki fine detail (building edges, road texture) dekhna mushkil tha — poora image full-size dikhta tha, zoom karne ka koi tarika nahi tha. `BeforeAfterSlider.tsx` mein ek circular magnifier lens add kiya: cursor follow karta hai, jis point par hover ho raha hai uska 3x zoomed crop dikhata hai, aur before/after mein se jo bhi us point par currently visible hai (slider position ke hisaab se) wahi zoom hota hai — CSS `background-position`/`background-size` se implement kiya, extra image load nahi (same base64 PNG src reuse hota hai).
+
+**Full Leaflet/MapLibre map integration explicitly nahi kiya** — reasoning: abhi demo sirf ek chhota patch (121x121 → 484x484) process karta hai, poori badi geographic scene nahi. "Pan across a map" ka concept tabhi value deta hai jab pan karne layak kuch bada ho — abhi nahi hai. User ko yeh tradeoff clearly bataya gaya, aur zoom-lens ko explicitly recommend kiya kam-scope, zyada-value option ki tarah — user ne accept kiya.
+**Verification:** `tsc -b` clean pass hua (no type errors). Vite dev server HMR se live update verify kiya (no console errors in dev server log). Visual browser check user ko khud karna hai.
+**Reasoning:** Chhota, contained scope — koi nayi dependency nahi (pure CSS + React state), current single-patch demo architecture ke liye sahi fit. Agar future mein bade multi-tile scenes process karne lagein, tab map integration ka case banega — abhi premature hota.
+**Status:** Code ready, typecheck clean. User verify karega browser mein.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

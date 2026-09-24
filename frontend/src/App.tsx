@@ -196,7 +196,7 @@ function App() {
               beforeLabel={`Original (${result.input_resolution_m}m)`}
               afterLabel={`GeoSR-4 Output (${result.output_resolution_m}m)`}
             />
-            <p className="mt-2 text-center text-xs text-slate-400">Drag the handle to compare</p>
+            <p className="mt-2 text-center text-xs text-slate-400">Drag the handle to compare -- hover anywhere to zoom in</p>
 
             <div className="mt-7">
               {result.metrics ? (

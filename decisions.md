@@ -668,6 +668,23 @@ Practically identical — 0.0002 ka gap, noise-level hai. Absolute IoU bhi dono 
 **Reasoning:** Yeh D033 se zyada rigorous method hai (real external ground truth), lekin result phir bhi clear SR-advantage nahi dikhata. Do independent attempts (D033: zero-shot segment count, D047: SAM+OSM IoU) dono ne is downstream proxy par koi significant benefit nahi paya. Honest reading: SR yahan reconstruction-fidelity metrics (PSNR/SAM) aur visual sharpness improve karta hai (verified, D029/D038), lekin off-the-shelf zero-shot object-detection-style downstream tasks par uska fayda (agar hai bhi) is proxy se measure nahi ho paya — ya to real fayda nahi hai, ya humara proxy metric hi is fayde ko capture karne mein sensitive nahi hai.
 **Status:** Real, honest result — na spin kiya na chhupaya. Panel ko yeh clearly bata sakte hain: "downstream validation try kiya, rigorous method use kiya, result inconclusive raha" — yeh khud ek valid scientific finding hai, failure nahi.
 
+**Follow-up (same din) — multi-AOI + per-building metric, ek naya diagnostic mila:**
+
+Do weaknesses fix karne ki koshish ki: (1) single AOI (Delhi) ka result trust nahi kar sakte — 3 aur diverse Indian urban AOIs add kiye (Bandra Mumbai, Koramangala Bangalore, Anna Nagar Chennai, sab real Sentinel-2 fetch + SR inference kiya); (2) flat union-mask IoU building-specific nahi tha (roads/trees bhi count hote the) — `fetch_osm_buildings.py` mein instance-labeled rasterization add kiya (`rasterize_buildings_instances`, har building ko unique ID), aur naya metric likha (`per_building_best_iou`, `ml/evaluation/downstream_segmentation_v2.py`): har real OSM building ko uske best-matching SAM segment se IoU score diya (standard "mean best-instance IoU", instance segmentation ka established metric), phir 3 AOIs mein pool kiya (`ml/evaluation/downstream_multi_aoi.py`).
+
+**Result (Delhi CP is baar Overpass timeout se skip hua, retry nahi kiya — 3 AOIs se result mila, n=6814 buildings pooled):**
+| AOI | Buildings scored | Bicubic best-IoU | SR best-IoU |
+|---|---|---|---|
+| Bandra Mumbai | 1707 | 0.0075 | 0.0080 |
+| Koramangala Bangalore | 2467 | 0.0054 | 0.0036 |
+| Anna Nagar Chennai | 2640 | 0.0028 | 0.0038 |
+| **Pooled** | **6814** | **0.0049** | **0.0048** |
+
+Phir se practically tied. Lekin ek zyada important diagnostic mila: **SAM ke segments (29-37 per crop) OSM buildings (1700-2600+ per crop) ke saamne bahut kam hain** — matlab SAM ka automatic mask generator (`points_per_side=16`, D033 mein CPU-speed ke liye choose kiya tha) itna coarse hai ki ek segment poora city-block cover kar leta hai, individual building resolve nahi karta. Isi wajah se absolute IoU bhi bahut low hai (~0.005, pehle wale union-IoU test se 35x kam) — yeh building-density itni zyada hai in Indian shehron mein ki current SAM settings us granularity tak pahunch hi nahi pate, chahe input bicubic ho ya SR.
+
+**Honest conclusion**: Yeh ab "SR downstream task mein help nahi karta" ka clean proof nahi hai — yeh "humara test-tool (SAM, low points_per_side) is building-density par kaam hi nahi kar raha, dono inputs ke liye equally" ka proof hai. Fix karne ke liye `points_per_side` bahut badhana padega (jaise 32-64), jo CPU par bahut slow ho jaayega (shayad ghanton mein). Teen independent attempts (D033, D047-v1, D047-v2) ab ho chuke hain, teeno inconclusive — is point par further downstream-task iteration ka cost-benefit questionable hai.
+**Status:** Multi-AOI + per-building metric bhi inconclusive, plus SAM-granularity ki genuine limitation expose hui. Yeh line of investigation yahan pause kar rahe hain jab tak koi naya, zyada compute-efficient tool na mile — teen honest, rigorous attempts already documented hain.
+
 ---
 
 ## Open Considerations (decided nahi, but track karna hai)

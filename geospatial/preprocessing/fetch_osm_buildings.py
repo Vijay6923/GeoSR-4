@@ -70,10 +70,35 @@ def rasterize_buildings(polygons_lonlat: list, dst_crs, dst_transform, dst_shape
     return rasterize(shapes, out_shape=dst_shape, transform=dst_transform, fill=0, dtype=np.uint8)
 
 
-def fetch_and_rasterize(reference_path: str) -> tuple:
+def rasterize_buildings_instances(polygons_lonlat: list, dst_crs, dst_transform, dst_shape: tuple) -> np.ndarray:
+    """Same as rasterize_buildings but each building gets its own unique
+    integer id (1..N), 0 = background -- needed for per-building metrics
+    (D047 v2's mean-best-IoU) instead of one flat binary mask. Later
+    polygons in the list paint over earlier ones where they'd overlap in
+    the rasterized grid (rare at building scale), same as any rasterize
+    call with ordered shapes."""
+    if not polygons_lonlat:
+        return np.zeros(dst_shape, dtype=np.int32)
+
+    shapes = []
+    for i, coords in enumerate(polygons_lonlat):
+        lons = [c[0] for c in coords]
+        lats = [c[1] for c in coords]
+        xs, ys = transform("EPSG:4326", dst_crs, lons, lats)
+        ring = list(zip(xs, ys))
+        if ring[0] != ring[-1]:
+            ring.append(ring[0])
+        shapes.append(({"type": "Polygon", "coordinates": [ring]}, i + 1))
+
+    return rasterize(shapes, out_shape=dst_shape, transform=dst_transform, fill=0, dtype=np.int32)
+
+
+def fetch_and_rasterize(reference_path: str, instances: bool = False) -> tuple:
     """reference_path: any GeoTIFF whose extent/CRS/pixel grid the mask
     should match (LR, SR or HR -- all share the same geographic footprint,
-    just different pixel grids). Returns (mask, profile) for writing."""
+    just different pixel grids). Returns (mask, profile, n_buildings) for
+    writing. instances=True returns a per-building instance-labeled array
+    instead of a flat binary mask (D047 v2)."""
     with rasterio.open(reference_path) as src:
         dst_crs = src.crs
         dst_transform = src.transform
@@ -87,7 +112,11 @@ def fetch_and_rasterize(reference_path: str) -> tuple:
 
     osm_json = fetch_building_ways(lon_min, lat_min, lon_max, lat_max)
     polygons = osm_json_to_polygons(osm_json)
-    mask = rasterize_buildings(polygons, dst_crs, dst_transform, dst_shape)
+    if instances:
+        mask = rasterize_buildings_instances(polygons, dst_crs, dst_transform, dst_shape)
+        profile["dtype"] = "int32"
+    else:
+        mask = rasterize_buildings(polygons, dst_crs, dst_transform, dst_shape)
     return mask, profile, len(polygons)
 
 

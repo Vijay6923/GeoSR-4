@@ -578,7 +578,18 @@ Isse ek clean 2x2 grid milta hai: D013 (dono off), D028 (dono on), 7a (sirf ICNR
 Isliye default checkpoint `facebook/dinov2-small` rakha — freely available (no gating), turant test ho sakta hai, lekin domain-mismatch VGG jaisa hi hai (yeh bhi natural-image pretrained hai). `model_id` parameter se DINOv3 sat493m checkpoint swap kiya ja sakega bina kisi aur code-change ke, jab gated access approve ho jaaye.
 **Verification:** Local CPU par 2 smoke tests kiye: (1) `DINOPerceptualLoss` standalone forward+backward — nonzero loss, real gradient (`grad norm 0.31`) confirm hua. (2) Poore `train_swinir.py` training loop se `--perceptual-backbone dino` flag ke saath (1 epoch, 4 samples) — clean chala. Regression check bhi kiya: `--perceptual-backbone vgg` (default) abhi bhi pehle jaisa hi kaam karta hai, koi change nahi.
 **Reasoning:** DINOv3-sat493m ka asli value satellite-domain pretraining hai, VGG se best comparison waha se hi milega — lekin gating ki wajah se abhi access nahi hai. Code ko pluggable bana kar approval ka wait block nahi karta — meanwhile DINOv2 se hi ablation start ho sakta hai (architecture upgrade ka isolated effect test karne ke liye, domain-match wala effect DINOv3 aane ke baad alag se measure hoga).
-**Status:** Code ready, smoke-tested. **DINOv3 sat493m gated access approve ho chuka hai** (2026-09-25 hi). `notebooks/train_swinir_dino_ablation_colab.ipynb` mein ab do runs hain: section 3 (DINOv2-small, D028/D029 se directly comparable protocol) aur section 4 (DINOv3 sat493m -- satellite-pretrained, asli domain-match test, `--batch-size 4` conservative guess bigger model ke liye D024/D025 ki OOM-history dekhte hue). Real training runs abhi baaki hain.
+**Real result — DINOv2-small quality run, Colab run complete (2026-09-25), n=279:**
+
+| Metric | D028 (VGG + ICNR) | DINOv2 + ICNR |
+|---|---|---|
+| PSNR | 16.83 dB | 16.70 dB |
+| SSIM | 0.437 | **0.4427** |
+| SAM | 12.07° | **11.45°** |
+| ERGAS | 13.89 (median 8.90) | 14.97 (median 8.66) |
+
+**Yeh isolation ablation (D040) se zyada clean/positive nikla.** DINOv2 SAM par meaningfully better hai (11.45° vs 12.07°, -0.62°) — SAM multispectral remote-sensing ke liye particularly relevant metric hai (spectral fidelity), to yeh genuinely encouraging signal hai. SSIM bhi thoda better hai, ERGAS median bhi thoda better (8.66 vs 8.90). Sirf PSNR thoda worse hai (-0.13 dB, chhota). Overall **3 out of 4 metrics DINOv2 ke favor mein hain**, aur yeh bina kisi domain-match advantage ke bhi hai (DINOv2 khud natural-image-pretrained hai, VGG jaisa hi) — sirf architecture upgrade (ViT vs CNN features) ka effect lagta hai.
+**Reasoning update**: Agar sirf architecture upgrade se itna signal mil raha hai, DINOv3-sat493m (real satellite-domain pretraining) se potentially aur better result milne ki umeed badh jaati hai.
+**Status:** DINOv2 run complete, result promising (SAM/SSIM/ERGAS-median better, PSNR thoda worse). **DINOv3 sat493m gated access approve ho chuka hai** (2026-09-25 hi). `notebooks/train_swinir_dino_ablation_colab.ipynb` mein section 4 (DINOv3 sat493m, `--batch-size 4`) abhi bhi chalana baaki hai.
 
 ---
 

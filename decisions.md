@@ -539,9 +539,22 @@ Isse ek clean 2x2 grid milta hai: D013 (dono off), D028 (dono on), 7a (sirf ICNR
 **Honestly, yeh expected se different hai.** Hypothesis tha ICNR akela hi clear PSNR/quality win dega (deterministic, verified fix hai checkerboard artifact ke liye) — lekin isolated run mein PSNR baseline se **worse** hai (16.54 vs 16.92), SSIM roughly flat, sirf SAM thoda better hai. ERGAS mean bhi worse hai (median dono runs mein similar range mein hai, 8.6-8.9, to yeh D015 wale outlier-skew ka pattern lagta hai).
 
 **Ek real confound hai jo honestly flag karna zaroori hai**: yeh run `--amp` (mixed precision, D041) ke saath chala — D013 aur D028 dono runs `--amp` ke bina hue the (feature tab tak exist nahi karta tha). Toh yeh pure ICNR-vs-baseline comparison nahi hai, ek extra variable (amp) bhi saath mein badal gaya hai. Iska convergence par kitna effect hota hai, pata nahi — ek possible explanation hai is unexpected result ka, lekin confirm nahi hai (run-to-run random variance bhi ho sakta hai, single run hai, koi seed-repeat nahi kiya).
-**Status:** 7a complete, result mixed/surprising — ICNR akela clear-cut win nahi de raha (kam se kam is single run mein, amp confound ke saath). 7b (perceptual-only) abhi bhi chal raha hai — uska result aane do, phir dono ko saath mein interpret karenge. Attribution abhi bhi open hai.
 
----
+**Real result — 7b (Perceptual-only) bhi complete (2026-09-25), n=279:** PSNR 16.72 dB, SSIM 0.4344, SAM 11.79°, ERGAS 15.10 (median 8.59). Yeh bhi `--amp` ke saath chala, wahi confound.
+
+**Poora 2x2 grid (sab n=279 val set):**
+
+| | No perceptual | + Perceptual |
+|---|---|---|
+| **No ICNR** | D013 baseline: 16.92dB / 0.429 / 11.60° / 14.56 | 7b: 16.72dB / 0.4344 / 11.79° / 15.10 (median 8.59) |
+| **+ ICNR** | 7a: 16.54dB / 0.4301 / 11.53° / 16.79 (median 8.60) | D028 combined: 16.83dB / 0.437 / 12.07° / 13.89 (median 8.90) |
+
+**Honest interpretation:** PSNR aur SAM ka pattern inconsistent hai — ICNR akela add karne se PSNR baseline se *girta* hai (D013→7a), lekin perceptual ke saath ICNR add karne se PSNR *badhta* hai (7b→D028) — sign hi flip ho raha hai depending on the other flag. Yehi ulta pattern perceptual ke liye bhi hai. Yeh sab differences bhi chhote hain (0.1-0.5 dB / 0.2-0.5°) — likely run-to-run noise ke range mein hi hain (koi seed-repeat nahi kiya gaya, sirf ek-ek run hai har config ka), aur `--amp` confound upar se.
+
+**Ek cheez consistent hai**: SSIM monotonically badhta hai jaise-jaise components add hote hain — D013 (0.429) < 7a (0.4301) < 7b (0.4344) < D028 (0.437). Yeh weak evidence hai ki dono components thoda positive contribute karte hain SSIM par, aur combined sabse best hai — lekin PSNR/SAM/ERGAS is pattern ko support nahi karte.
+
+**Final conclusion**: Is ablation se **precise numeric attribution nahi mil saka** — metrics is difference ko resolve karne ke liye kaafi sensitive nahi hain (yeh khud D028 mein pehle se predicted tha: "metrics roughly flat, real test visual hai"). Jaisa D029 mein visual comparison se hi asli sharpness-improvement pakड़ा tha (metrics ne nahi), waise hi ab bhi agar precise attribution chahiye ho to 7a/7b/D028/D013 checkpoints ka visual side-by-side comparison karna padega, sirf numbers se nahi chalega.
+**Status:** Dono runs (7a, 7b) complete, real results logged. Numeric attribution inconclusive rahi — yeh khud ek honest finding hai (D047 downstream-task jaisa hi pattern: rigorous test kiya, result clean nahi nikla). Visual comparison optional next step hai agar precise attribution abhi bhi chahiye.
 
 ---
 
@@ -556,8 +569,6 @@ Isse ek clean 2x2 grid milta hai: D013 (dono off), D028 (dono on), 7a (sirf ICNR
 
 ---
 
----
-
 ## D042 — DINOv2/DINOv3 perceptual loss backbone added (pluggable, VGG default unchanged)
 **Date:** 2026-09-25
 **Decision:** `ml/losses/perceptual_dino.py` mein naya `DINOPerceptualLoss` class banaya — `VGGPerceptualLoss` jaisa hi structure (frozen backbone, RGB bands only D006, L1 distance features ke beech), lekin backbone ek HF `transformers` model (`AutoModel.from_pretrained(model_id)`) hai, VGG ki jagah. `train_swinir.py` mein `--perceptual-backbone {vgg,dino}` aur `--dino-model-id` flags add kiye — default `vgg` hai (D023 se koi behavior change nahi, backward compatible), `dino` opt-in hai.
@@ -568,8 +579,6 @@ Isliye default checkpoint `facebook/dinov2-small` rakha — freely available (no
 **Verification:** Local CPU par 2 smoke tests kiye: (1) `DINOPerceptualLoss` standalone forward+backward — nonzero loss, real gradient (`grad norm 0.31`) confirm hua. (2) Poore `train_swinir.py` training loop se `--perceptual-backbone dino` flag ke saath (1 epoch, 4 samples) — clean chala. Regression check bhi kiya: `--perceptual-backbone vgg` (default) abhi bhi pehle jaisa hi kaam karta hai, koi change nahi.
 **Reasoning:** DINOv3-sat493m ka asli value satellite-domain pretraining hai, VGG se best comparison waha se hi milega — lekin gating ki wajah se abhi access nahi hai. Code ko pluggable bana kar approval ka wait block nahi karta — meanwhile DINOv2 se hi ablation start ho sakta hai (architecture upgrade ka isolated effect test karne ke liye, domain-match wala effect DINOv3 aane ke baad alag se measure hoga).
 **Status:** Code ready, smoke-tested. **DINOv3 sat493m gated access approve ho chuka hai** (2026-09-25 hi). `notebooks/train_swinir_dino_ablation_colab.ipynb` mein ab do runs hain: section 3 (DINOv2-small, D028/D029 se directly comparable protocol) aur section 4 (DINOv3 sat493m -- satellite-pretrained, asli domain-match test, `--batch-size 4` conservative guess bigger model ke liye D024/D025 ki OOM-history dekhte hue). Real training runs abhi baaki hain.
-
----
 
 ---
 
@@ -587,8 +596,6 @@ Frontend caption bhi update kiya — pehle sirf "Brighter = lower confidence" th
 
 ---
 
----
-
 ## D044 — Before/after slider mein hover-to-zoom magnifier add kiya (full map integration nahi)
 **Date:** 2026-09-25
 **Decision:** Frontend "boring" feedback ka ek hissa yeh tha ki fine detail (building edges, road texture) dekhna mushkil tha — poora image full-size dikhta tha, zoom karne ka koi tarika nahi tha. `BeforeAfterSlider.tsx` mein ek circular magnifier lens add kiya: cursor follow karta hai, jis point par hover ho raha hai uska 3x zoomed crop dikhata hai, aur before/after mein se jo bhi us point par currently visible hai (slider position ke hisaab se) wahi zoom hota hai — CSS `background-position`/`background-size` se implement kiya, extra image load nahi (same base64 PNG src reuse hota hai).
@@ -602,8 +609,6 @@ Frontend caption bhi update kiya — pehle sirf "Brighter = lower confidence" th
 
 ---
 
----
-
 ## D045 — Full UI visual redesign: dark "mission-control" theme, wide dashboard layout
 **Date:** 2026-09-25
 **Decision:** D044 ke baad user ne clarify kiya ki asli "boring" complaint overall UI visual design ke baare mein thi (light slate/emerald SaaS look, narrow centered column, generic feel), koi missing feature nahi. Isse properly solve karne ke liye pehle Artifact tool se ek standalone mockup banaya (do artboards: Upload state + Results state) taaki real app touch karne se pehle direction approve ho sake — user ne "sahi hai go ahead" bola, phir implement kiya.
@@ -614,8 +619,6 @@ Files change: `index.html` (Google Fonts links), `src/index.css` (color tokens a
 **Verification:** `tsc -b` clean pass hua. Vite dev server HMR se saari files live-update hui, koi console error nahi (dev server log check kiya). Visual browser check user khud karega.
 **Reasoning:** Mockup-first approach (D044 ki galti se seekha) — visual taste subjective hota hai, real code se pehle disposable preview approve karwana safer hai bina baar-baar wrong-direction implementation ke.
 **Status:** Code ready, typecheck clean. User verify karega browser mein.
-
----
 
 ---
 
@@ -633,8 +636,6 @@ Implement kiya: naya `Sidebar.tsx` (collapsible "Applications" submenu), light c
 **Verification:** `tsc -b` clean pass hua. Dev server ne cleanly HMR update liya, `curl` se page 200 return kiya. Visual browser check user khud karega.
 **Reasoning:** Full nav structure se demo ka "breadth of vision" dikhta hai (SIH panel ke liye valuable), lekin project ki core honesty principle (kabhi fabricated result nahi dikhana) maintain rakhi -- roadmap items clearly labeled hain, fake data kahin nahi hai.
 **Status:** Code ready, typecheck clean. User verify karega browser mein.
-
----
 
 ---
 

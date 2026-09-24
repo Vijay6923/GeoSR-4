@@ -594,9 +594,11 @@ Frontend caption bhi update kiya — pehle sirf "Brighter = lower confidence" th
 **Decision:** Frontend "boring" feedback ka ek hissa yeh tha ki fine detail (building edges, road texture) dekhna mushkil tha — poora image full-size dikhta tha, zoom karne ka koi tarika nahi tha. `BeforeAfterSlider.tsx` mein ek circular magnifier lens add kiya: cursor follow karta hai, jis point par hover ho raha hai uska 3x zoomed crop dikhata hai, aur before/after mein se jo bhi us point par currently visible hai (slider position ke hisaab se) wahi zoom hota hai — CSS `background-position`/`background-size` se implement kiya, extra image load nahi (same base64 PNG src reuse hota hai).
 
 **Full Leaflet/MapLibre map integration explicitly nahi kiya** — reasoning: abhi demo sirf ek chhota patch (121x121 → 484x484) process karta hai, poori badi geographic scene nahi. "Pan across a map" ka concept tabhi value deta hai jab pan karne layak kuch bada ho — abhi nahi hai. User ko yeh tradeoff clearly bataya gaya, aur zoom-lens ko explicitly recommend kiya kam-scope, zyada-value option ki tarah — user ne accept kiya.
-**Verification:** `tsc -b` clean pass hua (no type errors). Vite dev server HMR se live update verify kiya (no console errors in dev server log). Visual browser check user ko khud karna hai.
+**Verification:** `tsc -b` clean pass hua (no type errors). Vite dev server HMR se live update verify kiya (no console errors in dev server log).
 **Reasoning:** Chhota, contained scope — koi nayi dependency nahi (pure CSS + React state), current single-patch demo architecture ke liye sahi fit. Agar future mein bade multi-tile scenes process karne lagein, tab map integration ka case banega — abhi premature hota.
-**Status:** Code ready, typecheck clean. User verify karega browser mein.
+
+**Reverted, same din.** User ne browser mein real test kiya — feedback: "kuch khas nahi hai." Zyada important: original "boring" complaint ka matlab zoom ki kami nahi tha — matlab tha overall UI visual design hi weak lag raha hai (layout/styling, feature-gap nahi). Maine feedback ko galat interpret kiya tha (missing-feature problem samjha, jabki asli issue visual-design problem thi). Code revert kar diya (`BeforeAfterSlider.tsx`, `App.tsx` caption) — is entry ko delete nahi kiya taaki yeh honestly track rahe ki kya try kiya aur kyun kaam nahi aaya.
+**Status:** Reverted. Real next step: UI ka visual/styling redesign (layout, colors, spacing) — feature add karna nahi.
 
 ---
 

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 
 interface BeforeAfterSliderProps {
   beforeSrc: string
@@ -7,57 +7,11 @@ interface BeforeAfterSliderProps {
   afterLabel: string
 }
 
-const LENS_SIZE = 170 // px
-const ZOOM = 3 // magnifier zoom factor
-
-interface LensState {
-  x: number
-  y: number
-  showBefore: boolean
-}
-
 export default function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel, afterLabel }: BeforeAfterSliderProps) {
   const [pos, setPos] = useState(50) // percent, 0 = all "after", 100 = all "before"
-  const [lens, setLens] = useState<LensState | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  const updateLens = (clientX: number, clientY: number) => {
-    const el = containerRef.current
-    if (!el) return
-    const rect = el.getBoundingClientRect()
-    const x = Math.min(Math.max(clientX - rect.left, 0), rect.width)
-    const y = Math.min(Math.max(clientY - rect.top, 0), rect.height)
-    setLens({ x, y, showBefore: (x / rect.width) * 100 < pos })
-  }
-
-  let lensStyle: React.CSSProperties | undefined
-  if (lens && containerRef.current) {
-    const rect = containerRef.current.getBoundingClientRect()
-    const bgW = rect.width * ZOOM
-    const bgH = rect.height * ZOOM
-    lensStyle = {
-      left: lens.x - LENS_SIZE / 2,
-      top: lens.y - LENS_SIZE / 2,
-      width: LENS_SIZE,
-      height: LENS_SIZE,
-      backgroundImage: `url(${lens.showBefore ? beforeSrc : afterSrc})`,
-      backgroundSize: `${bgW}px ${bgH}px`,
-      backgroundPosition: `${-(lens.x * ZOOM - LENS_SIZE / 2)}px ${-(lens.y * ZOOM - LENS_SIZE / 2)}px`,
-    }
-  }
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full select-none overflow-hidden rounded-lg border border-slate-200 shadow-sm"
-      onMouseMove={(e) => updateLens(e.clientX, e.clientY)}
-      onMouseLeave={() => setLens(null)}
-      onTouchMove={(e) => {
-        const t = e.touches[0]
-        if (t) updateLens(t.clientX, t.clientY)
-      }}
-      onTouchEnd={() => setLens(null)}
-    >
+    <div className="relative w-full select-none overflow-hidden rounded-lg border border-slate-200 shadow-sm">
       {/* base layer: after (SR output), fills the whole container */}
       <img src={afterSrc} alt={afterLabel} className="block w-full" draggable={false} />
 
@@ -85,14 +39,6 @@ export default function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel, af
       <div className="pointer-events-none absolute top-3 right-3 rounded-md bg-emerald-600/85 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
         {afterLabel}
       </div>
-
-      {/* magnifier lens: follows the cursor, zoomed crop of whichever side (before/after) is under it */}
-      {lensStyle && (
-        <div
-          className="pointer-events-none absolute rounded-full border-2 border-white bg-no-repeat shadow-xl ring-1 ring-black/10"
-          style={lensStyle}
-        />
-      )}
 
       {/* invisible range input drives the whole thing -- native drag/touch/keyboard handling for free */}
       <input

@@ -40,6 +40,10 @@ def parse_args():
     p.add_argument("--no-icnr-init", action="store_true",
                     help="disable ICNR upsample init (random init instead) -- D040 ablation only, "
                          "isolates ICNR's contribution from the perceptual loss's. Leave ICNR on otherwise.")
+    p.add_argument("--amp", action="store_true",
+                    help="mixed-precision training (uses GPU Tensor Cores, e.g. on T4) -- no-op on CPU. "
+                         "Loss terms (SAM's acos, edge loss's sqrt) still computed in float32 for "
+                         "numerical stability -- see decisions.md D035 for why.")
     return p.parse_args()
 
 
@@ -85,6 +89,11 @@ def main():
 
     print(f"loss: L1 + {args.lambda_spectral} * spectral + {args.lambda_edge} * edge + {args.lambda_perceptual} * perceptual")
 
+    amp_enabled = args.amp and args.device == "cuda"
+    scaler = torch.amp.GradScaler("cuda", enabled=amp_enabled)
+    if args.amp and not amp_enabled:
+        print("--amp requested but no CUDA device -- running in plain fp32 (no-op on CPU)")
+
     os.makedirs(args.checkpoint_dir, exist_ok=True)
 
     step = 0
@@ -94,7 +103,15 @@ def main():
             lr = batch["lr"].to(args.device)
             hr = batch["hr"].to(args.device)
 
-            sr = model(lr)
+            optimizer.zero_grad()
+
+            with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=amp_enabled):
+                sr = model(lr)
+
+            # loss terms (SAM's acos, edge loss's sqrt) computed in fp32 --
+            # same reasoning as D035, these have known gradient-stability
+            # edge cases mixed precision would add risk to for no benefit
+            sr = sr.float()
             loss = l1_loss(sr, hr)
             if args.lambda_spectral > 0:
                 loss = loss + args.lambda_spectral * spectral_loss(sr, hr)
@@ -103,9 +120,9 @@ def main():
             if perceptual_loss is not None:
                 loss = loss + args.lambda_perceptual * perceptual_loss(sr, hr)
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
 
             if step % args.log_every == 0:
                 print(f"epoch {epoch} step {step} loss {loss.item():.4f}")

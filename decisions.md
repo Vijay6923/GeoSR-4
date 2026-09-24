@@ -530,6 +530,19 @@ Isse ek clean 2x2 grid milta hai: D013 (dono off), D028 (dono on), 7a (sirf ICNR
 
 ---
 
+---
+
+## D041 — D040 ablation ko Kaggle par bhi chalane layak banaya (`--amp` + naya notebook)
+**Date:** 2026-09-25
+**Decision:** D040 ka Colab run 7-8 hr le raha tha, jo Colab ke free-tier time limit se pehle hi khatam ho jata tha. Isko fix karne ke liye do cheezein kiye:
+1. `train_swinir.py` mein `--amp` flag add kiya (D035 mein `train_edsr_uncertainty.py` ke liye already kiya gaya tha, wahi pattern yahan bhi laaya) — `torch.autocast(dtype=float16)` se model forward pass, phir `sr = sr.float()` se explicitly fp32 mein wapas convert karke loss terms (SAM loss ka `acos`, edge loss ka `sqrt`) numerically stable rakhe, aur `torch.amp.GradScaler` se backward/step. Isse T4 jaisa GPU apne Tensor Cores use kar pata hai, training roughly 2x tak fast ho sakti hai.
+2. Naya notebook banaya — `notebooks/train_swinir_ablation_kaggle.ipynb` — jisme same 7a/7b (ab 3a/3b) ablation cells hain, lekin Kaggle-specific setup (nvidia-smi, phone-verification/internet troubleshooting note jo pehle is session mein face kiya tha, `/kaggle/working/` checkpoint copy step kyunki Kaggle mein `google.colab.files.download` nahi hota). Existing `train_swinir_colab.ipynb` ke 7a/7b cells mein bhi `--amp` add kiya taaki dono notebooks consistent rahein (Colab ka free GPU bhi usually T4 hi hota hai).
+**Verification:** `--amp` ko 3 flag-combinations ke saath local CPU par smoke-test kiya (bina `--amp`; `--amp` bina CUDA ke — clean no-op warning; `--amp` + perceptual + `--no-icnr-init` together) — sab clean chale, koi error nahi. Dono notebooks ka JSON validity check kiya (stray `</cell id="cell-N">` bug jo pehle 2 baar hua tha is session mein) — dono clean nikle.
+**Reasoning:** Kaggle free tier 30 GPU-hrs/week deta hai vs Colab ka session-limited free tier — D040 ke 2 runs (20 epochs each, ~40 min each estimated) is budget mein easily fit ho jaate hain. `--amp` optional hai (P100 par zaroorat nahi), lekin T4 par real speedup deta hai, to safe default hai include karna.
+**Status:** Code + dono notebooks ready. Real runs Kaggle ya Colab par, jahan bhi user chalaye, pending hai.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

@@ -636,6 +636,28 @@ Implement kiya: naya `Sidebar.tsx` (collapsible "Applications" submenu), light c
 
 ---
 
+---
+
+## D047 — Downstream task v2: real OSM ground truth se test kiya, phir bhi inconclusive
+**Date:** 2026-09-25
+**Decision:** D033 ka core flaw fix kiya — us attempt mein SAM ke apne zero-shot segments ko hi "ground truth" ki tarah use kiya gaya tha (circular comparison, model khud se compare ho raha tha). Isse fix karne ke liye naya script banaya:
+- `geospatial/preprocessing/fetch_osm_buildings.py`: OpenStreetMap Overpass API se real building footprints fetch karta hai (koi auth nahi chahiye), kisi bhi reference GeoTIFF ke grid par rasterize karta hai — yeh ek genuinely external, independent ground truth hai.
+- `ml/evaluation/downstream_segmentation_v2.py`: SAM automatic mask generator bicubic-upsampled input aur SR output dono par chalaya (union of all detected segment boundaries, koi building-vs-not classification nahi taaki ek aur judgment-call add na ho), phir dono ka IoU compute kiya real OSM building mask ke against.
+
+**Real-world test**: D030 wala Delhi (Connaught Place) AOI reuse kiya — pehle SEN2NAIP val-set ke 80/279 ROIs scan kiye OSM se (real building density check karne ke liye), aur pata chala **val set mostly rural/agricultural hai** (zyadatar ROIs mein 0 buildings, best case sirf 8) — is wajah se val set par yeh evaluation meaningless hota. Delhi AOI mein real dense urban data mila (4211 buildings, 13.22% pixel coverage poori AOI mein, 640x640 center-crop mein 17.67%).
+
+**Result (640x640 crop, n=72395 ground-truth building px):**
+| | Segments found | IoU vs OSM buildings |
+|---|---|---|
+| Bicubic-upsampled | 29 | **0.1770** |
+| GeoSR-4 output | 24 | **0.1768** |
+
+Practically identical — 0.0002 ka gap, noise-level hai. Absolute IoU bhi dono ke liye low hai (~0.18), kyunki SAM ke segments sirf buildings nahi, har distinct visual object (roads, trees, shadows) capture karte hain — union mask "building-specific" nahi hai.
+**Reasoning:** Yeh D033 se zyada rigorous method hai (real external ground truth), lekin result phir bhi clear SR-advantage nahi dikhata. Do independent attempts (D033: zero-shot segment count, D047: SAM+OSM IoU) dono ne is downstream proxy par koi significant benefit nahi paya. Honest reading: SR yahan reconstruction-fidelity metrics (PSNR/SAM) aur visual sharpness improve karta hai (verified, D029/D038), lekin off-the-shelf zero-shot object-detection-style downstream tasks par uska fayda (agar hai bhi) is proxy se measure nahi ho paya — ya to real fayda nahi hai, ya humara proxy metric hi is fayde ko capture karne mein sensitive nahi hai.
+**Status:** Real, honest result — na spin kiya na chhupaya. Panel ko yeh clearly bata sakte hain: "downstream validation try kiya, rigorous method use kiya, result inconclusive raha" — yeh khud ek valid scientific finding hai, failure nahi.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

@@ -2,6 +2,7 @@ export interface InferResponse {
   input_preview_png: string
   output_preview_png: string
   uncertainty_preview_png: string
+  ndvi_preview_png: string
   output_geotiff: string
   input_shape: number[]
   output_shape: number[]

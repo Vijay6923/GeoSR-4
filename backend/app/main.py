@@ -22,6 +22,7 @@ from ml.datasets.sen2naip import load_norm_stats, _normalize
 from ml.inference.infer_scene import build_model, run_sr_inference, SCALE_FACTOR
 from ml.inference.fuse_models import confidence_weighted_fuse
 from ml.evaluation.metrics import compute_all_metrics
+from ml.evaluation.ndvi import compute_ndvi
 from geospatial.geotiff.export import write_sr_geotiff
 from ml.inference.visualize_demo import to_rgb_display
 
@@ -102,6 +103,31 @@ def _heatmap_png_base64(values: np.ndarray) -> str:
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
+def _ndvi_png_base64(ndvi: np.ndarray) -> str:
+    """ndvi: (H,W) float in [-1,1]. Fixed color scale (not per-request
+    min/max like the uncertainty heatmap, D043) -- NDVI has a real,
+    meaningful absolute range, so a scene with little vegetation should
+    look uniformly low, not get contrast-stretched to look "average"."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    h, w = ndvi.shape
+    fig, ax = plt.subplots(figsize=(w / 100, h / 100 + 0.5), dpi=100)
+    im = ax.imshow(ndvi, cmap="RdYlGn", vmin=-1, vmax=1)
+    ax.axis("off")
+    cbar = fig.colorbar(im, ax=ax, orientation="horizontal", fraction=0.05, pad=0.03)
+    cbar.set_ticks([-1, -0.5, 0, 0.5, 1])
+    cbar.set_ticklabels(["-1\nWater/built-up", "-0.5", "0", "0.5", "1\nDense vegetation"])
+    cbar.ax.tick_params(labelsize=6)
+    cbar.set_label("NDVI = (NIR - Red) / (NIR + Red)", fontsize=7)
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight", pad_inches=0.05)
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
 def _read_geotiff_bytes(raw: bytes, label: str):
     try:
         with MemoryFile(raw) as memfile, memfile.open() as src:
@@ -164,11 +190,13 @@ async def infer(file: UploadFile = File(...), hr_reference: Optional[UploadFile]
 
     input_preview = _png_base64(to_rgb_display(scene))
     output_preview = _png_base64(to_rgb_display(sr_scene))
+    ndvi_preview = _ndvi_png_base64(compute_ndvi(sr_scene))
 
     return {
         "input_preview_png": input_preview,
         "output_preview_png": output_preview,
         "uncertainty_preview_png": uncertainty_preview,
+        "ndvi_preview_png": ndvi_preview,
         "output_geotiff": output_geotiff_b64,
         "input_shape": list(scene.shape),
         "output_shape": list(sr_scene.shape),

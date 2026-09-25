@@ -8,6 +8,7 @@ import UncertaintyMapPage from './pages/UncertaintyMapPage'
 import DownloadsPage from './pages/DownloadsPage'
 import ModelInsightsPage from './pages/ModelInsightsPage'
 import ComingSoonPage from './pages/ComingSoonPage'
+import CropMonitoringPage from './pages/CropMonitoringPage'
 import type { InferResponse } from './types'
 
 const PAGE_TITLES: Record<Page, string> = {
@@ -135,14 +136,7 @@ function App() {
           />
         )
       case 'app-crop':
-        return (
-          <ComingSoonPage
-            title="Crop Monitoring"
-            description="Field boundary detection and crop health analysis from enhanced multispectral imagery."
-            icon={<ToolIcon d="M12 22V12M12 12C12 7 8 6 5 6c0 5 2 8 7 6zM12 12c0-5 4-6 7-6 0 5-2 8-7 6z" />}
-            onGoToUpload={goToUpload}
-          />
-        )
+        return <CropMonitoringPage result={result} onGoToUpload={goToUpload} />
       case 'app-disaster':
         return (
           <ComingSoonPage

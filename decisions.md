@@ -732,6 +732,19 @@ Phir se practically tied. Lekin ek zyada important diagnostic mila: **SAM ke seg
 
 ---
 
+---
+
+## D049 — Crop Monitoring (NDVI) ab real feature hai, "planned" nahi
+**Date:** 2026-09-26
+**Decision:** User ne poocha ki D046 ke "planned" (Urban Analysis, Crop Monitoring, Disaster Assessment, Change Detection) mein se koi real implement ho sakta hai kya. Reframe kiya: D033/D047 ne yeh test kiya tha "kya SR bicubic se better hai in tasks ke liye" (research validation, inconclusive raha) — lekin "kya yeh feature ban sakta hai" (bina superiority claim kiye) alag, aasan sawal hai.
+
+**Crop Monitoring ab real hai**: NDVI (`(NIR - Red) / (NIR + Red)`) ek standard, well-established remote-sensing formula hai — koi trained model nahi, koi "SR helps" claim nahi, sirf real band math SR output ke Red/NIR bands par. `ml/evaluation/ndvi.py` (`compute_ndvi`), backend `/api/infer` response mein `ndvi_preview_png` add kiya (fixed -1 to 1 color scale, RdYlGn colormap, colorbar+legend D043 ke pattern se — is baar shuru se hi fixed scale rakha, per-request stretch nahi, kyunki NDVI ka meaningful absolute range hai). Frontend: `CropMonitoringPage.tsx`, `HomePage`'s "Crop monitoring" badge "planned" se "live" kiya, sidebar ka "Roadmap preview" note ab is page par nahi dikhta.
+**Verification**: Backend restart karke real `/api/infer` call kiya (`ROI_1320/lr.tif`), NDVI output decode karke dekha — real legend, plausible values (mostly near-zero/low, is ROI ke sparse-vegetation terrain se match karta hai). `tsc -b` clean, Vite HMR clean.
+**Honest scope note**: Frontend mein explicit disclaimer hai ki yeh "SR bicubic se behtar NDVI deta hai" jaisa claim nahi kar raha — sirf real band computation offer kar raha hai, jo standalone valid hai (SR output real hai, NDVI formula real hai, dono milke ek working feature hain).
+**Status:** Real, working, end-to-end verified. Urban Analysis aur Change Detection/Disaster Assessment abhi bhi "Coming soon" hain (zyada effort chahiye — SAM integration, ya do-image upload flow).
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

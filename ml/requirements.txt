@@ -5,3 +5,8 @@ numpy
 huggingface_hub
 scikit-image
 transformers
+opensr-degradation
+einops
+datasets
+pystac-client
+planetary-computer

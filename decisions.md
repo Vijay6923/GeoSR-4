@@ -695,6 +695,30 @@ Phir se practically tied. Lekin ek zyada important diagnostic mila: **SAM ke seg
 
 ---
 
+## D048 — Synthetic-degradation pretraining pipeline banaya (`opensr-degradation`)
+**Date:** 2026-09-26
+**Decision:** Backlog ke do bache hue items (synthetic-data pretraining pipeline, bigger/longer retrain) ek saath address kiye, kyunki dusra pehle wale se gated tha. Poora naya pipeline banaya:
+
+1. **`opensr-degradation` package integrate kiya** — yeh NAIP HR imagery ko synthetic Sentinel-2-like LR mein degrade karta hai (harmonization + blur + noise model), same OpenSR research group ne banaya jisne SEN2NAIP dataset banaya (tiling convention bhi match karta hai — 484px HR tiles). Do real bugs mile aur fix kiye package ke apne default params mein:
+   - `reflectance_method` default ek bare string hai, lekin unka apna code `for method in methods` karta hai jo string ko character-by-character iterate karta hai (`KeyError: 'g'`) — list explicitly pass karke fix kiya.
+   - `percentiles` param bhi similarly list expect karta hai, int nahi.
+   - `vae_histogram_matching` method (unka apna recommended default) yahan degenerate output deta hai (sab values ±0.01 ke andar, NaN nahi lekin useless) — debug nahi kiya (third-party model-weights issue, scope se bahar), instead `gamma_multivariate_normal` (non-learned statistical method) use kiya jo visually plausible blur/degradation deta hai (verified).
+2. **`geospatial/preprocessing/fetch_naip_hr.py`**: Microsoft Planetary Computer ke free, no-auth STAC API se real HR-only NAIP tiles fetch karta hai (0.6m native resolution), 2.5m/px 484x484 patches mein resample karta hai (humare HR grid convention se match).
+3. **`ml/datasets/generate_synthetic_pairs.py`**: 20 diverse US locations (urban/suburban/agricultural mix, alag-alag states) se real NAIP HR fetch karke, degrade karke synthetic (LR,HR) pairs banata hai, apni khud ki percentile-normalization stats compute karta hai (D008 jaisa hi philosophy, lekin alag scale hai kyunki degradation model ka output "harmonized reflectance" scale mein hai, real dataset ke raw DN scale mein nahi).
+4. **`ml/training/train_swinir_synthetic_pretrain.py`**: do-phase training — pehle synthetic corpus par pretrain (real val-set par evaluate karte hue throughout, taaki convergence dikhe), phir SAME model ko real train split par fine-tune (D040's 7a jaisa hi protocol — ICNR default on, taaki fair comparison ho).
+5. **`notebooks/train_swinir_synthetic_pretrain_colab.ipynb`**: poora pipeline (fetch→generate→pretrain→finetune→eval), plus ek "bigger model" section (embed_dim 60→120, depths 4→6 blocks each, pretrain 40→60 epochs, finetune 20→40 epochs) jo "bigger/longer retrain" backlog item ko isi pipeline se combine karta hai.
+
+**Verification**: Har component real-world test kiya, mock nahi:
+- `fetch_naip_hr.py`: real location (-119.2, 36.3) se fetch kiya, visually verify kiya (buildings/roads/orchards clearly dikhe)
+- `opensr-degradation`: real HR tile degrade kiya, visual comparison kiya real LR se — blur/structure pattern genuinely similar (D047 ke visual-check jaisa rigor)
+- Poora 20-location batch generate kiya (20/20 success), 3 pairs visually inspect kiye — geometric degradation sahi, color-harmonization tone thoda off (accepted limitation)
+- Poora pretrain+finetune script end-to-end CPU par smoke-test kiya (1 pretrain epoch, 1 finetune epoch, 4 real ROIs) — dono phases clean chale, checkpoints sahi save hue, val metrics dono phases mein print hue
+**Honest scale caveat**: 20 synthetic locations sirf **proof-of-concept scale** hai, "abundant synthetic data" ka asli value proposition (jisme synthetic data real paired data se kai guna zyada ho) abhi nahi achieve hua — real training set (2283 pairs) se bhi chhota hai yeh corpus. Scale badhana straightforward hai (`--n` badhao, `LOCATIONS` list mein aur jagah add karo), lekin fetch+degrade sequential hai (network-bound), to bahut bada batch (100s-1000s) generate karne mein real time lagega jo abhi nahi kiya.
+**Reasoning:** Fair comparison D040's 7a (ICNR-only, --amp, 20 epochs, PSNR 16.54 dB) ke against hai, kyunki dono same ICNR/amp config share karte hain — sirf synthetic-pretrain phase hi naya variable hai isolated.
+**Status:** Poora pipeline code ready, har component individually verified, end-to-end smoke-tested. Real GPU run (pretrain+finetune, aur optional bigger-model variant) Colab/Kaggle par user ko chalana hai — abhi tak nahi chalaya gaya hai.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

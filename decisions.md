@@ -591,6 +591,8 @@ Isliye default checkpoint `facebook/dinov2-small` rakha — freely available (no
 **Reasoning update**: Agar sirf architecture upgrade se itna signal mil raha hai, DINOv3-sat493m (real satellite-domain pretraining) se potentially aur better result milne ki umeed badh jaati hai.
 **Status:** DINOv2 run complete, result promising (SAM/SSIM/ERGAS-median better, PSNR thoda worse). **DINOv3 sat493m gated access approve ho chuka hai** (2026-09-25 hi). `notebooks/train_swinir_dino_ablation_colab.ipynb` mein section 4 (DINOv3 sat493m, `--batch-size 4`) abhi bhi chalana baaki hai.
 
+**DINOv3 run in-progress**: Standalone `notebooks/train_swinir_dino3_colab.ipynb` bhi bana diya (sirf DINOv3 section, DINOv2 wala nahi) — taaki fresh Colab session/account mein bina DINOv2 dobara chalaye seedha DINOv3 run kiya ja sake (D040 wale multi-notebook pattern jaisa hi, Kaggle rate-limit/session-reset se seekha hua). Actual run 24/30 epochs tak pahunch chuka hai bina kisi error ke jab yeh likha ja raha hai — real-time progress promising dikh raha hai (epoch 23: PSNR 17.04, SSIM 0.4714, SAM 11.28°).
+
 ---
 
 ## D043 — Uncertainty heatmap ab legend/scale ke saath aata hai (pehle koi nahi tha)

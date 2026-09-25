@@ -4,6 +4,7 @@ why window_size=11 and the chosen embed_dim/depths."""
 
 import argparse
 import os
+import re
 import sys
 import time
 import torch
@@ -52,6 +53,11 @@ def parse_args():
                     help="mixed-precision training (uses GPU Tensor Cores, e.g. on T4) -- no-op on CPU. "
                          "Loss terms (SAM's acos, edge loss's sqrt) still computed in float32 for "
                          "numerical stability -- see decisions.md D035 for why.")
+    p.add_argument("--resume-from", type=str, default=None,
+                    help="checkpoint path (e.g. experiments/x/swinir_epoch23.pt) to resume from -- "
+                         "for Colab/Kaggle session disconnects (D042). Loads model weights and continues "
+                         "from checkpoint_epoch+1; optimizer state (Adam momentum) is NOT restored -- "
+                         "a known, accepted simplification for this recovery path, not a precision run.")
     return p.parse_args()
 
 
@@ -103,6 +109,13 @@ def main():
     print(f"loss: L1 + {args.lambda_spectral} * spectral + {args.lambda_edge} * edge + "
           f"{args.lambda_perceptual} * perceptual ({args.perceptual_backbone})")
 
+    start_epoch = 0
+    if args.resume_from:
+        model.load_state_dict(torch.load(args.resume_from, map_location=args.device))
+        resumed_epoch = int(re.search(r"epoch(\d+)", args.resume_from).group(1))
+        start_epoch = resumed_epoch + 1
+        print(f"resumed from {args.resume_from} (epoch {resumed_epoch}) -- continuing at epoch {start_epoch}")
+
     amp_enabled = args.amp and args.device == "cuda"
     scaler = torch.amp.GradScaler("cuda", enabled=amp_enabled)
     if args.amp and not amp_enabled:
@@ -110,8 +123,8 @@ def main():
 
     os.makedirs(args.checkpoint_dir, exist_ok=True)
 
-    step = 0
-    for epoch in range(args.epochs):
+    step = start_epoch * len(train_loader)
+    for epoch in range(start_epoch, args.epochs):
         epoch_start = time.time()
         for batch in train_loader:
             lr = batch["lr"].to(args.device)

@@ -593,6 +593,12 @@ Isliye default checkpoint `facebook/dinov2-small` rakha — freely available (no
 
 **DINOv3 run in-progress**: Standalone `notebooks/train_swinir_dino3_colab.ipynb` bhi bana diya (sirf DINOv3 section, DINOv2 wala nahi) — taaki fresh Colab session/account mein bina DINOv2 dobara chalaye seedha DINOv3 run kiya ja sake (D040 wale multi-notebook pattern jaisa hi, Kaggle rate-limit/session-reset se seekha hua). Actual run 24/30 epochs tak pahunch chuka hai bina kisi error ke jab yeh likha ja raha hai — real-time progress promising dikh raha hai (epoch 23: PSNR 17.04, SSIM 0.4714, SAM 11.28°).
 
+**Disconnect ho gaya epoch 24 ke baad, checkpoints lost** (VM ephemeral disk tha, session poori tarah disconnect ho gaya, koi recovery nahi). Do fixes kiye taaki dobara na ho:
+1. `train_swinir.py` mein `--resume-from <checkpoint>` flag add kiya — model weights load karke `checkpoint_epoch + 1` se training continue karta hai (step counter bhi sahi se continue hota hai). Optimizer state (Adam momentum) resume nahi hota — yeh ek accepted simplification hai (disconnect-recovery ke liye, precision-training feature nahi). Local smoke-test kiya (2-epoch run, phir epoch0 checkpoint se resume kiya) — epoch/step numbering sahi continue hui.
+2. Notebook mein Google Drive mount cell add kiya (section 2a) — checkpoints ab `/content/drive/MyDrive/geosr4_checkpoints/...` mein save hote hain, VM disconnect hone par bhi safe rehte hain. Section 4b add kiya jo Drive mein sabse latest checkpoint dhoondh kar `--resume-from` ke saath training resume karta hai.
+**Reasoning**: Yeh is session mein baar-baar hua pattern hai (Kaggle DNS issues, Colab time-limits, HF account mismatch) — GPU-session-fragility ab ek established risk hai is project ke liye. Resume support ek generic, reusable fix hai, sirf is ek run ke liye nahi.
+**Status:** Code + notebook ready, resume-logic smoke-tested. User ko naye Colab account/session par poore 30 epochs (ya jahan tak pahunch paaye) dobara chalana hoga.
+
 ---
 
 ## D043 — Uncertainty heatmap ab legend/scale ke saath aata hai (pehle koi nahi tha)

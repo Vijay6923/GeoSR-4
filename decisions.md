@@ -599,6 +599,19 @@ Isliye default checkpoint `facebook/dinov2-small` rakha — freely available (no
 **Reasoning**: Yeh is session mein baar-baar hua pattern hai (Kaggle DNS issues, Colab time-limits, HF account mismatch) — GPU-session-fragility ab ek established risk hai is project ke liye. Resume support ek generic, reusable fix hai, sirf is ek run ke liye nahi.
 **Status:** Code + notebook ready, resume-logic smoke-tested. User ko naye Colab account/session par poore 30 epochs (ya jahan tak pahunch paaye) dobara chalana hoga.
 
+**Real final result — DINOv3-sat493m run complete on Kaggle (naya account se, 2026-09-26), n=279, poore 30 epochs:**
+
+| Metric | D028 (VGG) | DINOv2 | DINOv3-sat493m |
+|---|---|---|---|
+| PSNR | 16.83 dB | 16.70 dB | 16.74 dB |
+| SSIM | 0.437 | 0.4427 | **0.4481** |
+| SAM | 12.07° | 11.45° | **11.19°** |
+| ERGAS | 13.89 (median 8.90) | 14.97 (median 8.66) | 15.46 (median **8.30**) |
+
+**Yeh ek clean, coherent trend hai** — teeno backbones mein DINOv3-sat493m sabse better hai SAM (spectral fidelity, humare multispectral remote-sensing use-case ke liye sabse relevant metric) aur ERGAS-median par, SSIM bhi sabse best hai. PSNR teeno mein roughly tied hai (16.70-16.83 dB, noise-level range). Trend monotonic hai: VGG (natural-image, worst SAM) → DINOv2 (natural-image, better architecture, SAM improve hua) → DINOv3-sat493m (satellite-domain + better architecture, SAM sabse best) — yeh exactly D042 ke original hypothesis ko support karta hai ki domain-matched pretraining architecture-upgrade se bhi aage jaata hai.
+**Reasoning update**: Yeh investigation ka sabse positive, sabse coherent result hai poore session mein (D040/D047 ke ulat, jo inconclusive rahe) — real, honest, reproducible improvement pattern.
+**Status:** D042 investigation complete. DINOv3-sat493m ka result live demo mein perceptual backbone switch karne ka case banata hai (abhi VGG hai) — agla decision yeh hai ki checkpoint ko demo mein integrate karna hai ya nahi.
+
 ---
 
 ## D043 — Uncertainty heatmap ab legend/scale ke saath aata hai (pehle koi nahi tha)

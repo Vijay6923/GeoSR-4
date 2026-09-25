@@ -20,6 +20,22 @@ import numpy as np
 import rasterio
 import torch
 
+# Continental US bounding box, for random-location sampling at scale (D048
+# follow-up -- the curated LOCATIONS list below stays as a small, known-good
+# starting set; random sampling is how the corpus actually gets "abundant").
+# Some random points land in ocean/lakes/no-NAIP-coverage areas and are
+# skipped (generate_one already handles fetch failures gracefully) -- the
+# final corpus size is whatever succeeded, reported honestly, not forced to
+# hit an exact N.
+CONUS_BBOX = (-124.0, 25.5, -67.5, 48.5)  # lon_min, lat_min, lon_max, lat_max
+
+
+def random_conus_locations(n: int, seed: int = 42) -> list:
+    rng = np.random.default_rng(seed)
+    lons = rng.uniform(CONUS_BBOX[0], CONUS_BBOX[2], n)
+    lats = rng.uniform(CONUS_BBOX[1], CONUS_BBOX[3], n)
+    return list(zip(lons, lats))
+
 sys.path.insert(0, ".")
 from geospatial.preprocessing.fetch_naip_hr import fetch_naip_hr
 from ml.datasets.synthetic_degradation import degrade_hr_to_pair
@@ -63,6 +79,8 @@ def generate_one(idx: int, lon: float, lat: float) -> bool:
         fetch_naip_hr(lon, lat, hr_raw_path)
     except Exception as e:
         print(f"  ROI_synth_{idx:04d} SKIPPED (NAIP fetch failed): {e}")
+        import shutil
+        shutil.rmtree(roi_dir, ignore_errors=True)  # don't leave an empty dir for compute_and_save_stats to trip on
         return False
 
     with rasterio.open(hr_raw_path) as src:
@@ -102,7 +120,10 @@ def compute_and_save_stats():
     since it's on a different scale (harmonized-reflectance) than the real
     dataset's raw DN scale."""
     roi_dirs = sorted(
-        d for d in os.listdir(OUT_ROOT) if d.startswith("ROI_synth_") and os.path.isdir(os.path.join(OUT_ROOT, d))
+        d for d in os.listdir(OUT_ROOT)
+        if d.startswith("ROI_synth_")
+        and os.path.exists(os.path.join(OUT_ROOT, d, "lr.tif"))
+        and os.path.exists(os.path.join(OUT_ROOT, d, "hr.tif"))
     )
     lr_pixels = [[] for _ in range(4)]
     hr_pixels = [[] for _ in range(4)]
@@ -128,14 +149,23 @@ def compute_and_save_stats():
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--n", type=int, default=len(LOCATIONS), help="how many locations to fetch (from the curated list)")
+    p.add_argument("--random-n", type=int, default=0,
+                    help="additionally fetch this many random CONUS locations (D048 follow-up, for scaling the "
+                         "corpus up past the small curated list -- some will fail/skip, no NAIP coverage there)")
+    p.add_argument("--seed", type=int, default=42, help="for --random-n's location sampling, reproducible runs")
+    p.add_argument("--start-index", type=int, default=0, help="ROI_synth_<i> numbering offset, for adding to an existing corpus without overwriting it")
     args = p.parse_args()
 
     os.makedirs(OUT_ROOT, exist_ok=True)
+    locations = list(LOCATIONS[: args.n])
+    if args.random_n > 0:
+        locations += random_conus_locations(args.random_n, seed=args.seed)
+
     ok = 0
-    for i, (lon, lat) in enumerate(LOCATIONS[: args.n]):
-        if generate_one(i, lon, lat):
+    for offset, (lon, lat) in enumerate(locations):
+        if generate_one(args.start_index + offset, lon, lat):
             ok += 1
-    print(f"\n{ok}/{args.n} synthetic pairs generated successfully")
+    print(f"\n{ok}/{len(locations)} synthetic pairs generated successfully")
 
     if ok > 0:
         compute_and_save_stats()

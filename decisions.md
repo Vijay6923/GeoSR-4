@@ -811,6 +811,12 @@ Final choice: **"The Blue Marble" (Apollo 17, December 7 1972)** — `https://up
 **Verification**: `tsc -b` clean, Vite HMR clean (ek intermediate JSX-imbalance error aaya tha do-step edit ke beech mein, agla edit se fix ho gaya, final state verified error-free).
 **Status:** Done, verified.
 
+**Follow-up (same din)**: User ne specifically maanga "satellite Earth ki photo le raha hai" jaisi image — "Blue Marble" (sirf Earth) us criteria ko match nahi karta tha. Dobara search kiya: pehla candidate galat nikla ("Sentinel-2 captures..." — dari asal mein Sentinel-2 se li gayi Earth ki photo thi, satellite khud nahi dikhta), dusra try sahi mila — **"Artist's rendering of NASA's Aqua Satellite Orbiting Earth"** (NASA/JPL AIRS Project, CC BY 2.0, Flickr se) — isme satellite (solar panels, instruments) aur Earth dono clearly dikhte hain. `hero-satellite.jpg` mein crop/save kiya.
+
+Animation bhi update ki: full 360° rotation is asymmetric composition (satellite + fixed-orientation stars) ke liye ajeeb lagta (jaisे satellite bina wajah tumbling ho raha ho) — isliye `animate-spin-slow` hata kar subtle `animate-float` banaya (slow drift + scale pulse, 10s cycle, `prefers-reduced-motion` respect karta hai).
+**Verification**: `tsc -b` clean. Dev server log mein ek transient "file not found" error aaya (asset delete karne aur import path update karne ke beech ka timing gap), khud hi resolve ho gaya — final state clean HMR se confirm hui.
+**Status:** Done, verified.
+
 ---
 
 ## Open Considerations (decided nahi, but track karna hai)

@@ -1,4 +1,4 @@
-import heroImage from '../assets/hero-earth.jpg'
+import heroImage from '../assets/hero-satellite.jpg'
 
 interface UseCase {
   label: string
@@ -22,14 +22,14 @@ export default function HomePage({ onGetStarted }: { onGetStarted: () => void })
           className="pointer-events-none absolute -top-16 -right-16 h-[380px] w-[380px] overflow-hidden rounded-full border border-[var(--border-c)] opacity-90 sm:h-[440px] sm:w-[440px]"
           style={{ boxShadow: '0 0 60px rgba(255,122,69,0.12)' }}
         >
-          <img src={heroImage} alt="" className="animate-spin-slow h-full w-full object-cover" />
+          <img src={heroImage} alt="" className="animate-float h-full w-full object-cover" />
           <div
             className="absolute inset-0"
             style={{ background: 'radial-gradient(circle, transparent 55%, var(--surface) 92%)' }}
           />
         </div>
         <p className="pointer-events-none absolute top-3 right-3 text-[10px] text-[var(--text-faint)] sm:top-4 sm:right-4">
-          &ldquo;The Blue Marble&rdquo;, Apollo 17 &middot; NASA, public domain
+          Earth-observation satellite (artist rendering) &middot; NASA/JPL
         </p>
         <div className="relative max-w-xl">
           <h1 className="font-display text-4xl leading-tight font-semibold text-[var(--text)]">

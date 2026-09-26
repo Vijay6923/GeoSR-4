@@ -28,17 +28,17 @@ body {
   color: var(--text);
 }
 
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+@keyframes float-slow {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-1.5%, -2%) scale(1.04); }
 }
 
-.animate-spin-slow {
-  animation: spin-slow 90s linear infinite;
+.animate-float {
+  animation: float-slow 10s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-spin-slow {
+  .animate-float {
     animation: none;
   }
 }

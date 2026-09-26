@@ -798,6 +798,21 @@ Final choice: **"The Blue Marble" (Apollo 17, December 7 1972)** — `https://up
 
 ---
 
+---
+
+## D053 — Crop Monitoring/Urban Analysis pages mein bhi real satellite images, Home page pe subtle animation
+**Date:** 2026-09-26
+**Decision:** D052 ka pattern extend kiya baaki pages tak. Real, verified (WebSearch + WebFetch se URL confirm karke, kabhi guess nahi kiya) images:
+- **Crop Monitoring**: center-pivot irrigation fields, Saudi Arabia (Landsat 8 / USGS, CC BY 2.0, attribution di gayi) — iconic circular-field pattern jo crop-monitoring context ke liye directly relevant hai.
+- **Urban Analysis**: Paris false-color satellite image (Landsat / US NGA, public domain) — clear urban-grid + river pattern.
+- Dono ek chhoti "header banner" (h-36, gradient-fade into page background) ki tarah use kiye, real feature-content (NDVI map / SAM overlay) ke upar, competing nahi karte.
+
+**Home page animation**: Hero Earth image (D052) ko slow continuous rotation di (`animate-spin-slow`, 90s/rotation, `prefers-reduced-motion` respect karta hai). Mathematically verified ki square image apne center ke around rotate karne se circular-clip container mein kabhi gap nahi dikhta (inscribed-circle property rotation-invariant hai) — bina oversizing ke clean kaam karta hai.
+**Verification**: `tsc -b` clean, Vite HMR clean (ek intermediate JSX-imbalance error aaya tha do-step edit ke beech mein, agla edit se fix ho gaya, final state verified error-free).
+**Status:** Done, verified.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

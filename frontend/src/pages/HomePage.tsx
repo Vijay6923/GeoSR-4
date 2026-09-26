@@ -22,7 +22,7 @@ export default function HomePage({ onGetStarted }: { onGetStarted: () => void })
           className="pointer-events-none absolute -top-16 -right-16 h-[380px] w-[380px] overflow-hidden rounded-full border border-[var(--border-c)] opacity-90 sm:h-[440px] sm:w-[440px]"
           style={{ boxShadow: '0 0 60px rgba(255,122,69,0.12)' }}
         >
-          <img src={heroImage} alt="" className="h-full w-full object-cover" />
+          <img src={heroImage} alt="" className="animate-spin-slow h-full w-full object-cover" />
           <div
             className="absolute inset-0"
             style={{ background: 'radial-gradient(circle, transparent 55%, var(--surface) 92%)' }}

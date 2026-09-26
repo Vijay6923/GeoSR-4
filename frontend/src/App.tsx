@@ -10,6 +10,7 @@ import ModelInsightsPage from './pages/ModelInsightsPage'
 import ComingSoonPage from './pages/ComingSoonPage'
 import CropMonitoringPage from './pages/CropMonitoringPage'
 import UrbanAnalysisPage from './pages/UrbanAnalysisPage'
+import ChangeDetectionPage from './pages/ChangeDetectionPage'
 import type { InferResponse } from './types'
 
 const PAGE_TITLES: Record<Page, string> = {
@@ -141,14 +142,7 @@ function App() {
           />
         )
       case 'app-change':
-        return (
-          <ComingSoonPage
-            title="Change Detection"
-            description="Before/after comparison and land-cover change flagging across two super-resolved scenes of the same area."
-            icon={<ToolIcon d="M17 3l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 21l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" />}
-            onGoToUpload={goToUpload}
-          />
-        )
+        return <ChangeDetectionPage />
     }
   }
 

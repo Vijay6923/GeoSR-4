@@ -174,6 +174,32 @@ def _segmentation_overlay_png_base64(rgb: np.ndarray, masks: list) -> str:
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
+def _change_png_base64(change_map: np.ndarray) -> str:
+    """change_map: (H,W) float, normalized-space mean-absolute-difference
+    between two SR outputs, roughly [0,1] -- fixed color scale (same
+    reasoning as NDVI, D049: this has a real, meaningful absolute range
+    since both inputs were normalized the same way, not a per-request
+    stretch that would make every scene look 'medium change')."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    h, w = change_map.shape
+    fig, ax = plt.subplots(figsize=(w / 100, h / 100 + 0.5), dpi=100)
+    im = ax.imshow(change_map, cmap="inferno", vmin=0, vmax=0.5)
+    ax.axis("off")
+    cbar = fig.colorbar(im, ax=ax, orientation="horizontal", fraction=0.05, pad=0.03)
+    cbar.set_ticks([0, 0.125, 0.25, 0.375, 0.5])
+    cbar.set_ticklabels(["0\nNo change", "", "0.25", "", "0.5+\nMajor change"])
+    cbar.ax.tick_params(labelsize=6)
+    cbar.set_label("mean absolute difference (normalized reflectance)", fontsize=7)
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight", pad_inches=0.05)
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
 def _read_geotiff_bytes(raw: bytes, label: str):
     try:
         with MemoryFile(raw) as memfile, memfile.open() as src:
@@ -277,6 +303,56 @@ def urban_analysis(req: UrbanAnalysisRequest):
     return {
         "overlay_png": _segmentation_overlay_png_base64(rgb, masks),
         "n_segments": len(masks),
+    }
+
+
+@app.post("/api/change-detection")
+async def change_detection(before: UploadFile = File(...), after: UploadFile = File(...)):
+    """D050: real before/after change detection -- runs SR on both uploads
+    and reports mean-absolute-difference between the two SR outputs.
+    Assumes both inputs are already the same pixel grid (same AOI, same
+    crop, different acquisition dates) -- no georeferencing/alignment is
+    attempted here, just a shape check; a real mismatch (different crop
+    extents) is rejected rather than silently comparing misaligned pixels."""
+    for f, label in [(before, "'before'"), (after, "'after'")]:
+        if not f.filename.lower().endswith((".tif", ".tiff")):
+            raise HTTPException(400, f"the {label} file must be a GeoTIFF (.tif/.tiff)")
+
+    before_raw = await before.read()
+    after_raw = await after.read()
+    for raw, label in [(before_raw, "'before'"), (after_raw, "'after'")]:
+        if len(raw) > MAX_UPLOAD_BYTES:
+            raise HTTPException(400, f"the {label} file is too large (max {MAX_UPLOAD_BYTES // (1024*1024)} MB for this demo)")
+
+    before_scene, before_transform, before_crs = _read_geotiff_bytes(before_raw, "the 'before' file")
+    after_scene, _, _ = _read_geotiff_bytes(after_raw, "the 'after' file")
+
+    if before_scene.shape[0] != 4 or after_scene.shape[0] != 4:
+        raise HTTPException(400, "both files must have 4 bands (R,G,B,NIR)")
+    if before_scene.shape != after_scene.shape:
+        raise HTTPException(
+            400,
+            f"'before' ({list(before_scene.shape)}) and 'after' ({list(after_scene.shape)}) must be the same "
+            "shape -- same AOI/crop, just a different acquisition date. This demo does not align mismatched extents.",
+        )
+
+    before_sr, _ = run_sr_inference(
+        _state["model"], before_scene, TILE_SIZE, OVERLAP, DEVICE, _state["lr_ranges"], _state["hr_ranges"], uncertainty=False,
+    )
+    after_sr, _ = run_sr_inference(
+        _state["model"], after_scene, TILE_SIZE, OVERLAP, DEVICE, _state["lr_ranges"], _state["hr_ranges"], uncertainty=False,
+    )
+
+    before_norm = _normalize(before_sr, _state["hr_ranges"])
+    after_norm = _normalize(after_sr, _state["hr_ranges"])
+    change_map = np.abs(after_norm - before_norm).mean(axis=0)
+
+    return {
+        "before_preview_png": _png_base64(to_rgb_display(before_sr)),
+        "after_preview_png": _png_base64(to_rgb_display(after_sr)),
+        "change_preview_png": _change_png_base64(change_map),
+        "output_shape": list(before_sr.shape),
+        "output_resolution_m": 10.0 / SCALE_FACTOR,
     }
 
 

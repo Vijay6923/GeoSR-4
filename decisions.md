@@ -757,6 +757,20 @@ Frontend: `UrbanAnalysisPage.tsx` — user-triggered "Run detection" button (aut
 
 ---
 
+---
+
+## D051 — Change Detection ab real feature hai (do-image upload flow)
+**Date:** 2026-09-26
+**Decision:** Teesra "planned" feature real bana diya. Yeh doosron se different hai — naya do-image upload flow chahiye tha (before/after, same AOI, alag dates). Backend: `POST /api/change-detection` — dono images par SR chalata hai (existing pipeline reuse), phir dono SR outputs ko same normalization space (`hr_ranges`) mein normalize karke per-pixel mean-absolute-difference nikalta hai, fixed [0, 0.5+] color scale ke saath render karta hai (D049/D050 ka established pattern — real legend, per-request stretch nahi).
+
+**Real constraint jo explicitly bataya gaya hai**: dono images same exact pixel grid honi chahiye (same crop/shape) — koi georeferencing/alignment nahi kiya jaata, shape-mismatch explicitly reject hota hai (silently misaligned pixels compare nahi karta).
+
+Frontend: `ChangeDetectionPage.tsx` — do `Dropzone` (Before/After), "Compare" button, before/after SR previews + change heatmap dikhata hai.
+**Verification**: Backend restart kiya, real end-to-end test kiya do **alag-alag** ROIs (`ROI_1320`, `ROI_1916`) ke saath (same shape, different content — simulates worst-case "not actually same place" scenario) — real change map mila, poore frame mein moderate-high change dikha (expected hai, kyunki yeh genuinely alag jagah hain, real same-location before/after pair honest tarike se kam change dikhayega). `tsc -b` clean, Vite HMR clean.
+**Status:** Real, working, end-to-end verified. Sabhi teen user-requested features (Crop Monitoring D049, Urban Analysis D050, Change Detection D051) ab live hain. Disaster Assessment abhi "Coming soon" hai (explicitly nahi manga gaya tha).
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

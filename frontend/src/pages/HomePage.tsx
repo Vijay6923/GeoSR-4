@@ -9,7 +9,7 @@ const USE_CASES: UseCase[] = [
   { label: 'Urban analysis', status: 'live' },
   { label: 'Crop monitoring', status: 'live' },
   { label: 'Disaster assessment', status: 'planned' },
-  { label: 'Change detection', status: 'planned' },
+  { label: 'Change detection', status: 'live' },
 ]
 
 export default function HomePage({ onGetStarted }: { onGetStarted: () => void }) {

@@ -31,7 +31,7 @@ from ml.inference.visualize_demo import to_rgb_display
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB -- fine for demo-size patches, not full scenes (see D021)
 TILE_SIZE = 121
 OVERLAP = 16
-CHECKPOINT_PATH = "experiments/swinir_quality/swinir_epoch29.pt"  # D029: perceptual+ICNR, visibly sharper texture
+CHECKPOINT_PATH = "experiments/swinir_quality/swinir_dino3_sat_epoch29.pt"  # D042: DINOv3-sat493m perceptual loss, best of 3 backbones on SAM
 UNCERTAINTY_CHECKPOINT_PATH = "experiments/edsr_uncertainty/edsr_unc_epoch19.pt"  # D036
 SAM_CHECKPOINT_PATH = "ml/models/sam/sam_vit_b_01ec64.pth"  # D033/D047, reused for D050 (live Urban Analysis)
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"

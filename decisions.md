@@ -612,6 +612,8 @@ Isliye default checkpoint `facebook/dinov2-small` rakha — freely available (no
 **Reasoning update**: Yeh investigation ka sabse positive, sabse coherent result hai poore session mein (D040/D047 ke ulat, jo inconclusive rahe) — real, honest, reproducible improvement pattern.
 **Status:** D042 investigation complete. DINOv3-sat493m ka result live demo mein perceptual backbone switch karne ka case banata hai (abhi VGG hai) — agla decision yeh hai ki checkpoint ko demo mein integrate karna hai ya nahi.
 
+**Integrated (2026-09-26)**: Checkpoint (`swinir_dino3_sat_epoch29.pt`) Kaggle se download karke `experiments/swinir_quality/` mein daal diya gaya (alag filename, purana VGG checkpoint safe hai). `backend/app/main.py` ka `CHECKPOINT_PATH` update kiya isi naye checkpoint par point karne ke liye — DINOv3 khud runtime mein load nahi hota, sirf training ke time loss ke liye use hua tha, to koi extra dependency inference mein nahi hai. Verify kiya: backend clean restart hua (koi shape-mismatch error nahi), real `/api/infer` call kiya (`ROI_1320`) — clean output aaya. **Live demo ab DINOv3-sat493m-trained checkpoint serve karta hai.**
+
 ---
 
 ## D043 — Uncertainty heatmap ab legend/scale ke saath aata hai (pehle koi nahi tha)

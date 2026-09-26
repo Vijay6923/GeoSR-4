@@ -39,7 +39,6 @@ const MAIN_ITEMS: NavItemDef[] = [
 const APPLICATIONS: NavItemDef[] = [
   { page: 'app-urban', label: 'Urban Analysis', icon: <Icon><path d="M3 21h18" /><path d="M6 21V8l6-4 6 4v13" /><path d="M10 21v-6h4v6" /></Icon> },
   { page: 'app-crop', label: 'Crop Monitoring', icon: <Icon><path d="M12 22V12" /><path d="M12 12C12 7 8 6 5 6c0 5 2 8 7 6z" /><path d="M12 12c0-5 4-6 7-6 0 5-2 8-7 6z" /></Icon> },
-  { page: 'app-disaster', label: 'Disaster Assessment', icon: <Icon><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /></Icon>, disabled: true },
   { page: 'app-change', label: 'Change Detection', icon: <Icon><path d="M17 3l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><path d="M7 21l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></Icon> },
 ]
 

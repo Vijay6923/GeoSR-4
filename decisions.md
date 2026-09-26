@@ -829,6 +829,16 @@ Animation bhi update ki: full 360° rotation is asymmetric composition (satellit
 
 ---
 
+---
+
+## D055 — "Disaster Assessment" poori tarah hata diya (D054 ka greyed-out state visually ajeeb laga)
+**Date:** 2026-09-26
+**Decision:** D054 ka disabled/greyed-out treatment visually off laga user ko. Poori tarah hata diya: `Sidebar.tsx`'s `APPLICATIONS` array se item remove kiya, `HomePage.tsx`'s `USE_CASES` list se bhi. `disabled` field/handling logic `NavRow` mein reusable infra ki tarah rakha (koi item ab use nahi karta, harmless).
+**Verification**: `tsc -b` clean, Vite HMR clean.
+**Status:** Done, verified. `App.tsx`/`Page` type mein `app-disaster` route abhi bhi maujood hai (unreachable, harmless dead code) — future mein feature ready ho to yahi se re-add karna hoga.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

@@ -839,6 +839,22 @@ Animation bhi update ki: full 360° rotation is asymmetric composition (satellit
 
 ---
 
+---
+
+## D056 — Deployment: single-container Hugging Face Space (Docker SDK)
+**Date:** 2026-09-26
+**Decision:** User ne live-shareable link maanga (SIH PPT ke liye). Report likha pehle (options compare kiye: HF Spaces vs Render/Railway vs Google Cloud Run vs PM2+apna server) — HF Spaces recommend kiya kyunki: (1) free CPU tier 16GB RAM deta hai, (2) sleep nahi karta (Render free tier ki tarah — judging ke time link dead na mile isliye important), (3) already HF ecosystem use ho raha hai poore project mein, (4) single Docker container mein frontend+backend dono ek URL par serve ho sakte hain, koi CORS/do-origin complexity nahi. PM2 approach (user ne poocha) explain kiya — woh sirf process manager hai, apna server chahiye hoga (GCP credits se banaya ja sakta hai), zyada manual maintenance (HTTPS, firewall, uptime) khud handle karna padega — user ne HF Spaces hi choose kiya.
+
+**Real blocker jo pehle hi flag kiya**: model checkpoints (SwinIR 3.7MB, EDSR-uncertainty 6.1MB, SAM 375MB) `experiments/`/`ml/models/` mein hain jo **gitignored hain** — deployed container ke paas yeh files nahi hongi GitHub se. Fix: `backend/app/main.py` mein `_ensure_checkpoint()` helper add kiya — agar file locally maujood hai (dev machine) to wahi use karta hai, warna `GEOSR4_CHECKPOINTS_REPO` env var se HF Hub model repo se `hf_hub_download` karta hai runtime par.
+
+**Single-URL serving**: `App.tsx` client-side router use nahi karta (sirf `useState` page-switching), isliye SPA catch-all fallback route ki zaroorat nahi thi — sirf `StaticFiles(directory="frontend/dist", html=True)` mount kiya `/api/*` routes ke baad (taaki explicit API routes pehle match hon). `Dockerfile` multi-stage hai: Node stage frontend build karta hai, Python stage backend + built frontend serve karta hai, ek hi port (7860, HF Spaces Docker convention) par.
+
+**Verification**: Local par poora integrated flow test kiya — `npm run build` (clean), backend restart karke `curl localhost:8000/` (frontend index, 200), static asset (200), aur real `/api/infer` call (real inference, real output) — sab ek hi port/server se, exactly jaisa deployed container mein hoga.
+**Reasoning:** Report-first approach li gayi kyunki deployment ek "hard to reverse, shared-visibility" action hai (public URL, judges/others use karenge) — matching is session ke established "check before risky actions" principle.
+**Status:** Code + Dockerfile + HF Spaces README frontmatter ready, local end-to-end verified. **Pending user action**: apne machine par `huggingface-cli login` (token kabhi chat mein nahi), phir checkpoint upload + Space creation baaki hai.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

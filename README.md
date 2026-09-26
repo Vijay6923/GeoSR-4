@@ -1,3 +1,13 @@
+---
+title: GeoSR-4
+emoji: 🛰️
+colorFrom: blue
+colorTo: orange
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # GeoSR-4
 
 AI-based super-resolution for medium-resolution satellite imagery — SIH 2026 Problem Statement **26142** (NTRO, Space Technology theme).
@@ -12,7 +22,11 @@ AI-based super-resolution for medium-resolution satellite imagery — SIH 2026 P
 
 ## Status
 
-Early scaffolding stage. Repo structure is laid out per the PRD; dataset acquisition is in progress (SEN2NAIP cross-sensor split — see `decisions.md` D002/D003). No application code yet.
+Working end-to-end demo: SwinIR super-resolution (DINOv3-sat493m perceptual loss, D042), EDSR-based uncertainty estimation, confidence-weighted fusion, NDVI/Urban Analysis/Change Detection features, real Indian-AOI validation. Full history and reasoning for every decision in `decisions.md` (D001–D056+).
+
+## Live demo
+
+Deployed as a single Docker container on Hugging Face Spaces (frontend + backend, one URL, no separate hosting) -- see `decisions.md` D056 for the deployment approach.
 
 ## Repo structure
 

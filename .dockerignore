@@ -1,0 +1,14 @@
+.git
+ml/datasets/raw/
+*.zip
+__pycache__/
+*.pyc
+.venv/
+venv/
+frontend/node_modules/
+frontend/dist/
+experiments/
+*.pth
+*.pt
+*.ckpt
+notebooks/

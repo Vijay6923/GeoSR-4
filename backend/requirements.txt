@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+numpy
+torch
+torchvision
+rasterio
+matplotlib
+Pillow
+segment-anything
+huggingface_hub

@@ -8,6 +8,7 @@ Run from the repo root: uvicorn backend.app.main:app --reload
 
 import base64
 import io
+import os
 import sys
 from typing import Optional
 import numpy as np
@@ -15,6 +16,7 @@ import rasterio
 import torch
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from rasterio.io import MemoryFile
 from PIL import Image
@@ -36,6 +38,29 @@ UNCERTAINTY_CHECKPOINT_PATH = "experiments/edsr_uncertainty/edsr_unc_epoch19.pt"
 SAM_CHECKPOINT_PATH = "ml/models/sam/sam_vit_b_01ec64.pth"  # D033/D047, reused for D050 (live Urban Analysis)
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
+# D056: checkpoints aren't in git (experiments/ is gitignored, SAM is 375MB) --
+# a deployed container fetches them from this HF Hub model repo on first
+# startup if not already present locally (e.g. on a dev machine that already
+# has them). Set to your own repo before deploying.
+HF_CHECKPOINTS_REPO = os.environ.get("GEOSR4_CHECKPOINTS_REPO", "")
+
+
+def _ensure_checkpoint(local_path: str, hf_filename: str) -> str:
+    """Returns a real path to the checkpoint -- the existing local one if
+    present (dev machine), otherwise downloads it from HF_CHECKPOINTS_REPO
+    (deployed container) and returns that cached path instead."""
+    if os.path.exists(local_path):
+        return local_path
+    if not HF_CHECKPOINTS_REPO:
+        raise RuntimeError(
+            f"{local_path} not found locally and GEOSR4_CHECKPOINTS_REPO is not set -- "
+            "can't fetch it from the Hub either. Set that env var to a HF Hub model repo "
+            "containing the checkpoints, or place the file locally."
+        )
+    from huggingface_hub import hf_hub_download
+    print(f"{local_path} not found locally -- downloading {hf_filename} from {HF_CHECKPOINTS_REPO}...")
+    return hf_hub_download(repo_id=HF_CHECKPOINTS_REPO, filename=hf_filename)
+
 app = FastAPI(title="GeoSR-4 API")
 app.add_middleware(
     CORSMiddleware,
@@ -50,14 +75,16 @@ _state = {}
 @app.on_event("startup")
 def load_model():
     model = build_model("swinir", embed_dim=60, depths="2,2,2,2", num_heads=6, window_size=11).to(DEVICE)
-    model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=DEVICE))
+    resolved_checkpoint = _ensure_checkpoint(CHECKPOINT_PATH, "swinir_dino3_sat_epoch29.pt")
+    model.load_state_dict(torch.load(resolved_checkpoint, map_location=DEVICE))
     model.eval()
 
     # second model, dual-inference (D036): SwinIR gives the sharp image,
     # this EDSR-uncertainty model gives the confidence map -- not the same
     # architecture as the pretty-image model, so run separately
     uncertainty_model = build_model("edsr", uncertainty=True, n_blocks=16, n_channels=64).to(DEVICE)
-    uncertainty_model.load_state_dict(torch.load(UNCERTAINTY_CHECKPOINT_PATH, map_location=DEVICE))
+    resolved_uncertainty_checkpoint = _ensure_checkpoint(UNCERTAINTY_CHECKPOINT_PATH, "edsr_unc_epoch19.pt")
+    uncertainty_model.load_state_dict(torch.load(resolved_uncertainty_checkpoint, map_location=DEVICE))
     uncertainty_model.eval()
 
     lr_ranges, hr_ranges = load_norm_stats()
@@ -71,7 +98,8 @@ def load_model():
     # unlike the offline D033/D047 evaluations which could afford to be slower
     try:
         from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
-        sam = sam_model_registry["vit_b"](checkpoint=SAM_CHECKPOINT_PATH).to(DEVICE)
+        resolved_sam_checkpoint = _ensure_checkpoint(SAM_CHECKPOINT_PATH, "sam_vit_b_01ec64.pth")
+        sam = sam_model_registry["vit_b"](checkpoint=resolved_sam_checkpoint).to(DEVICE)
         _state["sam_mask_generator"] = SamAutomaticMaskGenerator(sam, points_per_side=12, min_mask_region_area=30)
         print("SAM loaded for Urban Analysis")
     except Exception as e:
@@ -364,3 +392,17 @@ def health():
         "uncertainty_model_loaded": "uncertainty_model" in _state,
         "device": DEVICE,
     }
+
+
+# D056: serves the built frontend (frontend/dist, after `npm run build`) from
+# this same FastAPI app -- one process, one URL, no CORS/two-origin setup
+# needed for the deployed demo. Mounted last so it never shadows the /api/*
+# routes above (Starlette checks explicit routes before mounted sub-apps).
+# The app has no client-side router (App.tsx uses in-memory useState for
+# page switching, not URLs), so a plain static mount is enough -- no SPA
+# catch-all fallback route is needed.
+_frontend_dist = "frontend/dist"
+if os.path.isdir(_frontend_dist):
+    app.mount("/", StaticFiles(directory=_frontend_dist, html=True), name="frontend")
+else:
+    print(f"{_frontend_dist} not found -- frontend not built, only /api/* will work (run `npm run build` first)")

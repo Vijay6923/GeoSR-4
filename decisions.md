@@ -614,6 +614,18 @@ Isliye default checkpoint `facebook/dinov2-small` rakha — freely available (no
 
 **Integrated (2026-09-26)**: Checkpoint (`swinir_dino3_sat_epoch29.pt`) Kaggle se download karke `experiments/swinir_quality/` mein daal diya gaya (alag filename, purana VGG checkpoint safe hai). `backend/app/main.py` ka `CHECKPOINT_PATH` update kiya isi naye checkpoint par point karne ke liye — DINOv3 khud runtime mein load nahi hota, sirf training ke time loss ke liye use hua tha, to koi extra dependency inference mein nahi hai. Verify kiya: backend clean restart hua (koi shape-mismatch error nahi), real `/api/infer` call kiya (`ROI_1320`) — clean output aaya. **Live demo ab DINOv3-sat493m-trained checkpoint serve karta hai.**
 
+**Real fusion re-evaluation (poore 279-pair val set par, 2026-09-26)**: User ne poocha "kya sach mein improve hua" — single-patch test se koi conclusion nahi nikal sakte the, to `ml/evaluation/evaluate_fusion.py` (D038) dobara chalaya naye checkpoint ke saath (`ml/inference/fuse_models.py`'s `SWINIR_CHECKPOINT` bhi update kiya isi naye checkpoint par, taaki live-demo se consistent rahe).
+
+| | Purana fused (VGG-SwinIR + EDSR, D038) | Naya fused (DINOv3-SwinIR + EDSR) |
+|---|---|---|
+| PSNR | 16.89 dB | 16.88 dB |
+| SSIM | 0.4471 | 0.4471 |
+| SAM | 11.84° | **11.62°** |
+| ERGAS | 15.06 (median 8.87-8.90) | 15.07 (median 8.62) |
+
+**Honest, nuanced finding**: Raw SwinIR-alone (DINOv3) ka SAM **11.19°** hai — behtar hai fused output (11.62°) se bhi! Matlab confidence-weighted fusion (jo EDSR-uncertainty ke saath tuned tha, DINOv3-SwinIR ke saath dobara tune nahi kiya gaya) EDSR ka weaker SAM (11.90°) wapas mila deta hai, jisse DINOv3 ka full gain live demo tak nahi pahunchta. **Net result: modest SAM improvement (~0.22°) live demo mein, PSNR/SSIM practically flat, ERGAS mixed** — D042 ke raw SwinIR comparison (0.88° SAM gain) jitna promising nahi, kyunki fusion dilute kar deta hai.
+**Status:** D042 poori tarah close ho gaya — checkpoint integrated hai, real improvement chhota lekin genuine hai (SAM). Fusion-weighting ko DINOv3-specific retune karna ek future consideration hai agar bada improvement chahiye ho (abhi scope se bahar).
+
 ---
 
 ## D043 — Uncertainty heatmap ab legend/scale ke saath aata hai (pehle koi nahi tha)

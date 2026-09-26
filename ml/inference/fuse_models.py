@@ -22,7 +22,7 @@ from ml.inference.infer_scene import build_model, run_sr_inference, SCALE_FACTOR
 from geospatial.geotiff.export import write_sr_geotiff
 
 EDSR_CHECKPOINT = "experiments/edsr_uncertainty/edsr_unc_epoch19.pt"
-SWINIR_CHECKPOINT = "experiments/swinir_quality/swinir_epoch29.pt"
+SWINIR_CHECKPOINT = "experiments/swinir_quality/swinir_dino3_sat_epoch29.pt"  # D042: DINOv3-sat493m, matches live demo
 
 
 def confidence_weighted_fuse(edsr_mean: np.ndarray, edsr_std: np.ndarray, swinir_out: np.ndarray) -> tuple:

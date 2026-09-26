@@ -819,6 +819,16 @@ Animation bhi update ki: full 360° rotation is asymmetric composition (satellit
 
 ---
 
+---
+
+## D054 — Sidebar mein "Disaster Assessment" ab disabled hai (non-functional feature click-through nahi hoga)
+**Date:** 2026-09-26
+**Decision:** Teen features (Crop Monitoring, Urban Analysis, Change Detection) live hone ke baad Disaster Assessment akela "Coming soon" reh gaya tha — user ne isko screen se disable karne ko kaha. `Sidebar.tsx` mein `NavItemDef` ko `disabled?: boolean` field diya, `app-disaster` ko `disabled: true` mark kiya. `NavRow` component ab disabled items ko greyed-out (`opacity-50`), non-clickable (`<div>` not `<button>`, `aria-disabled`) render karta hai, ek chhota "Soon" badge ke saath — click karne se kuch hota nahi (URL/route change nahi hota).
+**Verification**: `tsc -b` clean. Ek transient HMR runtime error aaya tha (do sequential edits ke beech ka momentary inconsistent state, browser mein already-mounted component ne purani `appPages` reference use kar li) — final file state verify kiya, poori tarah consistent/clean hai.
+**Status:** Done, verified. `App.tsx` ka `app-disaster` case (ComingSoonPage) code mein reh gaya hai (harmless dead code, ab UI se reachable nahi) — future mein feature build karke wapas enable karna ho to sirf `disabled: true` hatana hoga.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

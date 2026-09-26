@@ -18,6 +18,7 @@ interface NavItemDef {
   page: Page
   label: string
   icon: ReactNode
+  disabled?: boolean
 }
 
 function Icon({ children }: { children: ReactNode }) {
@@ -38,7 +39,7 @@ const MAIN_ITEMS: NavItemDef[] = [
 const APPLICATIONS: NavItemDef[] = [
   { page: 'app-urban', label: 'Urban Analysis', icon: <Icon><path d="M3 21h18" /><path d="M6 21V8l6-4 6 4v13" /><path d="M10 21v-6h4v6" /></Icon> },
   { page: 'app-crop', label: 'Crop Monitoring', icon: <Icon><path d="M12 22V12" /><path d="M12 12C12 7 8 6 5 6c0 5 2 8 7 6z" /><path d="M12 12c0-5 4-6 7-6 0 5-2 8-7 6z" /></Icon> },
-  { page: 'app-disaster', label: 'Disaster Assessment', icon: <Icon><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /></Icon> },
+  { page: 'app-disaster', label: 'Disaster Assessment', icon: <Icon><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /></Icon>, disabled: true },
   { page: 'app-change', label: 'Change Detection', icon: <Icon><path d="M17 3l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><path d="M7 21l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></Icon> },
 ]
 
@@ -49,6 +50,19 @@ const TAIL_ITEMS: NavItemDef[] = [
 ]
 
 function NavRow({ item, active, onSelect, indent }: { item: NavItemDef; active: boolean; onSelect: (p: Page) => void; indent?: boolean }) {
+  if (item.disabled) {
+    return (
+      <div
+        className={`flex w-full cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[var(--text-faint)] opacity-50 ${indent ? 'pl-9' : ''}`}
+        aria-disabled="true"
+      >
+        <span>{item.icon}</span>
+        <span className="flex-1">{item.label}</span>
+        <span className="rounded-full bg-[var(--surface-2)] px-1.5 py-0.5 text-[9px] font-medium">Soon</span>
+      </div>
+    )
+  }
+
   return (
     <button
       onClick={() => onSelect(item.page)}
@@ -64,7 +78,6 @@ function NavRow({ item, active, onSelect, indent }: { item: NavItemDef; active: 
 
 export default function Sidebar({ page, onSelect }: { page: Page; onSelect: (p: Page) => void }) {
   const [appsOpen, setAppsOpen] = useState(true)
-  const appPages: Page[] = ['app-disaster']
 
   return (
     <aside className="flex h-screen w-[248px] shrink-0 flex-col border-r border-[var(--border-c)] bg-[var(--surface)]">
@@ -110,7 +123,6 @@ export default function Sidebar({ page, onSelect }: { page: Page; onSelect: (p: 
 
       <div className="border-t border-[var(--border-c)] px-5 py-4 text-[11px] text-[var(--text-faint)]">
         SIH 26142 &middot; NTRO
-        {appPages.includes(page) && <span className="mt-1 block text-[var(--warn)]">Roadmap preview -- not yet implemented</span>}
       </div>
     </aside>
   )

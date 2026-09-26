@@ -1,3 +1,5 @@
+import heroImage from '../assets/hero-earth.jpg'
+
 interface UseCase {
   label: string
   status: 'live' | 'planned'
@@ -17,17 +19,18 @@ export default function HomePage({ onGetStarted }: { onGetStarted: () => void })
     <div className="flex flex-col gap-6">
       <div className="relative overflow-hidden rounded-[18px] border border-[var(--border-c)] bg-[var(--surface)] px-8 py-14 sm:px-12">
         <div
-          className="pointer-events-none absolute -top-24 -right-24 h-[420px] w-[420px] rounded-full opacity-70"
-          style={{ background: 'radial-gradient(circle at 35% 35%, #1a3a52 0%, #0d1f2e 45%, transparent 70%)' }}
-        />
-        <div
-          className="pointer-events-none absolute -top-24 -right-24 h-[420px] w-[420px] rounded-full"
-          style={{
-            background:
-              'repeating-conic-gradient(rgba(34,211,238,0.06) 0deg 2deg, transparent 2deg 8deg)',
-            maskImage: 'radial-gradient(circle, black 60%, transparent 72%)',
-          }}
-        />
+          className="pointer-events-none absolute -top-16 -right-16 h-[380px] w-[380px] overflow-hidden rounded-full border border-[var(--border-c)] opacity-90 sm:h-[440px] sm:w-[440px]"
+          style={{ boxShadow: '0 0 60px rgba(255,122,69,0.12)' }}
+        >
+          <img src={heroImage} alt="" className="h-full w-full object-cover" />
+          <div
+            className="absolute inset-0"
+            style={{ background: 'radial-gradient(circle, transparent 55%, var(--surface) 92%)' }}
+          />
+        </div>
+        <p className="pointer-events-none absolute top-3 right-3 text-[10px] text-[var(--text-faint)] sm:top-4 sm:right-4">
+          &ldquo;The Blue Marble&rdquo;, Apollo 17 &middot; NASA, public domain
+        </p>
         <div className="relative max-w-xl">
           <h1 className="font-display text-4xl leading-tight font-semibold text-[var(--text)]">
             Turn medium-resolution satellite imagery into high-detail insight

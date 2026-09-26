@@ -785,6 +785,19 @@ Frontend: `ChangeDetectionPage.tsx` — do `Dropzone` (Before/After), "Compare" 
 
 ---
 
+---
+
+## D052 — Home page ka hero decoration ab real image hai, abstract gradient nahi
+**Date:** 2026-09-26
+**Decision:** Home page ke hero section mein pehle ek abstract CSS radial-gradient "orbit" graphic tha (koi real content nahi). Pehla attempt: D030 ka real Delhi SR output crop kiya. User ne phir specifically Wikimedia/Unsplash se real image maanga — koi URL guess nahi kiya (system instruction: URLs kabhi guess nahi karna), instead WebSearch se real Wikimedia Commons file dhoondha, `WebFetch` se uska exact direct URL + license verify kiya, phir download kiya.
+
+Final choice: **"The Blue Marble" (Apollo 17, December 7 1972)** — `https://upload.wikimedia.org/wikipedia/commons/7/78/The_Blue_Marble.jpg`, NASA ne khud liya tha, US law ke tahat public domain hai (verified via file page). Yeh flat world-map projection se zyada sahi fit hai circular decoration ke liye (asli sphere-shaped Earth photo hai, map projection ko circle mein crop karne se distorted lagta). Center-crop + resize kiya 640x640 par (132KB), `frontend/src/assets/hero-earth.jpg` mein save kiya. Caption update kiya attribution ke saath ("The Blue Marble", Apollo 17 · NASA, public domain).
+**Verification**: `tsc -b` clean, Vite HMR clean. Real URL se real file download verify kiya (`file` command se JPEG confirm kiya, 2320x2407 native resolution).
+**Reasoning**: URL kabhi guess nahi karna — real search + fetch se verify karke hi use kiya. Public-domain NASA content hai, koi licensing risk nahi.
+**Status:** Done, verified.
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

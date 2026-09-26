@@ -6,7 +6,7 @@ interface UseCase {
 const USE_CASES: UseCase[] = [
   { label: 'Image super-resolution', status: 'live' },
   { label: 'Uncertainty estimation', status: 'live' },
-  { label: 'Urban analysis', status: 'planned' },
+  { label: 'Urban analysis', status: 'live' },
   { label: 'Crop monitoring', status: 'live' },
   { label: 'Disaster assessment', status: 'planned' },
   { label: 'Change detection', status: 'planned' },

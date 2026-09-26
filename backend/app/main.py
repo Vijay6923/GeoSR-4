@@ -15,7 +15,9 @@ import rasterio
 import torch
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from rasterio.io import MemoryFile
+from PIL import Image
 
 sys.path.insert(0, ".")
 from ml.datasets.sen2naip import load_norm_stats, _normalize
@@ -31,6 +33,7 @@ TILE_SIZE = 121
 OVERLAP = 16
 CHECKPOINT_PATH = "experiments/swinir_quality/swinir_epoch29.pt"  # D029: perceptual+ICNR, visibly sharper texture
 UNCERTAINTY_CHECKPOINT_PATH = "experiments/edsr_uncertainty/edsr_unc_epoch19.pt"  # D036
+SAM_CHECKPOINT_PATH = "ml/models/sam/sam_vit_b_01ec64.pth"  # D033/D047, reused for D050 (live Urban Analysis)
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 app = FastAPI(title="GeoSR-4 API")
@@ -62,6 +65,19 @@ def load_model():
     _state["uncertainty_model"] = uncertainty_model
     _state["lr_ranges"] = lr_ranges
     _state["hr_ranges"] = hr_ranges
+
+    # D050: SAM for the live "Urban Analysis" feature -- fast settings
+    # (small points_per_side) since this runs synchronously in a request,
+    # unlike the offline D033/D047 evaluations which could afford to be slower
+    try:
+        from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
+        sam = sam_model_registry["vit_b"](checkpoint=SAM_CHECKPOINT_PATH).to(DEVICE)
+        _state["sam_mask_generator"] = SamAutomaticMaskGenerator(sam, points_per_side=12, min_mask_region_area=30)
+        print("SAM loaded for Urban Analysis")
+    except Exception as e:
+        _state["sam_mask_generator"] = None
+        print(f"SAM not available, Urban Analysis will be disabled: {e}")
+
     print(f"models loaded on {DEVICE}")
 
 
@@ -121,6 +137,36 @@ def _ndvi_png_base64(ndvi: np.ndarray) -> str:
     cbar.set_ticklabels(["-1\nWater/built-up", "-0.5", "0", "0.5", "1\nDense vegetation"])
     cbar.ax.tick_params(labelsize=6)
     cbar.set_label("NDVI = (NIR - Red) / (NIR + Red)", fontsize=7)
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight", pad_inches=0.05)
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def _segmentation_overlay_png_base64(rgb: np.ndarray, masks: list) -> str:
+    """rgb: (H,W,3) uint8. masks: list of SAM segmentation dicts. Draws each
+    detected segment as a distinct semi-transparent color over the real
+    image -- this is real zero-shot detection (D033/D047's SAM setup, just
+    fast settings for a live request), not a trained classifier and not a
+    claim that SR finds more/better segments than bicubic would (D047 found
+    that comparison inconclusive) -- see decisions.md D050."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    h, w = rgb.shape[:2]
+    fig, ax = plt.subplots(figsize=(w / 100, h / 100 + 0.4), dpi=100)
+    ax.imshow(rgb)
+
+    rng = np.random.default_rng(0)
+    overlay = np.zeros((h, w, 4))
+    for m in masks:
+        color = np.concatenate([rng.random(3), [0.45]])
+        overlay[m["segmentation"]] = color
+    ax.imshow(overlay)
+    ax.axis("off")
+    ax.set_title(f"{len(masks)} distinct structures/objects detected", fontsize=9)
 
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight", pad_inches=0.05)
@@ -203,6 +249,34 @@ async def infer(file: UploadFile = File(...), hr_reference: Optional[UploadFile]
         "input_resolution_m": 10.0,
         "output_resolution_m": 10.0 / SCALE_FACTOR,
         "metrics": metrics,
+    }
+
+
+class UrbanAnalysisRequest(BaseModel):
+    image_png_base64: str
+
+
+@app.post("/api/urban-analysis")
+def urban_analysis(req: UrbanAnalysisRequest):
+    """D050: real zero-shot structure/building segmentation on the SR
+    output PNG the frontend already has (no need to re-run SR inference --
+    reuses ml/evaluation/downstream_segmentation_v2.py's SAM setup, D033/D047,
+    at faster settings since this runs synchronously in a request)."""
+    if _state.get("sam_mask_generator") is None:
+        raise HTTPException(503, "Urban Analysis is unavailable -- SAM model failed to load on this server")
+
+    try:
+        png_bytes = base64.b64decode(req.image_png_base64)
+        rgb = np.array(Image.open(io.BytesIO(png_bytes)).convert("RGB"))
+    except Exception:
+        raise HTTPException(400, "could not decode image_png_base64 as an image")
+
+    masks = _state["sam_mask_generator"].generate(rgb)
+    masks = [m for m in masks if m["area"] >= 30]
+
+    return {
+        "overlay_png": _segmentation_overlay_png_base64(rgb, masks),
+        "n_segments": len(masks),
     }
 
 

@@ -745,6 +745,18 @@ Phir se practically tied. Lekin ek zyada important diagnostic mila: **SAM ke seg
 
 ---
 
+---
+
+## D050 — Urban Analysis (SAM structure detection) ab real feature hai
+**Date:** 2026-09-26
+**Decision:** D049 jaisa hi reframe — "kya SR bicubic se better hai" (D033/D047, inconclusive) alag sawal hai "kya feature ban sakta hai" (bina superiority claim) se. Urban Analysis ke liye existing SAM setup (D033/D047) reuse kiya, backend mein naya `POST /api/urban-analysis` endpoint banaya jo frontend ke already-computed SR preview PNG (`output_preview_png`) par directly SAM automatic mask generation chalata hai — koi dobara SR inference nahi chahiye. Fast settings use kiye (`points_per_side=12`, D033/D047 ke `16` se bhi kam) kyunki yeh ab synchronous request ke andar chalta hai, offline batch-evaluation nahi.
+
+Frontend: `UrbanAnalysisPage.tsx` — user-triggered "Run detection" button (auto-run nahi kiya, kyunki SAM inference ~15-20s leta hai, user ko explicitly control dena better UX hai slow operation ke liye). Result: colored segment overlay + count. Explicit disclaimer hai ki yeh SAM ka real zero-shot output hai, trained classifier nahi, aur SR-vs-bicubic superiority claim nahi kar raha (D047 ka honest context carry karta hai).
+**Verification**: Backend restart kiya (SAM checkpoint load hua cleanly), real end-to-end test kiya — `ROI_1320` ke SR preview par 9 segments detect hue (~17s), overlay visually verify kiya (real colored regions, image ke actual features par align). `tsc -b` clean, Vite HMR clean.
+**Status:** Real, working, end-to-end verified. `HomePage`'s "Urban analysis" badge "planned" se "live".
+
+---
+
 ## Open Considerations (decided nahi, but track karna hai)
 
 - ~~**Indian AOI qualitative inference**~~ **RESOLVED (D030)**. Indian HR ground-truth reference dataset abhi bhi nahi milta (quantitative metrics is wajah se still not possible for India specifically) — yeh sub-item open hi hai.

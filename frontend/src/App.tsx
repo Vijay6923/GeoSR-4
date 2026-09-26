@@ -9,6 +9,7 @@ import DownloadsPage from './pages/DownloadsPage'
 import ModelInsightsPage from './pages/ModelInsightsPage'
 import ComingSoonPage from './pages/ComingSoonPage'
 import CropMonitoringPage from './pages/CropMonitoringPage'
+import UrbanAnalysisPage from './pages/UrbanAnalysisPage'
 import type { InferResponse } from './types'
 
 const PAGE_TITLES: Record<Page, string> = {
@@ -127,14 +128,7 @@ function App() {
           />
         )
       case 'app-urban':
-        return (
-          <ComingSoonPage
-            title="Urban Analysis"
-            description="Detect buildings, roads, and urban expansion from super-resolved imagery."
-            icon={<ToolIcon d="M3 21h18M6 21V8l6-4 6 4v13M10 21v-6h4v6" />}
-            onGoToUpload={goToUpload}
-          />
-        )
+        return <UrbanAnalysisPage result={result} onGoToUpload={goToUpload} />
       case 'app-crop':
         return <CropMonitoringPage result={result} onGoToUpload={goToUpload} />
       case 'app-disaster':

@@ -64,7 +64,7 @@ function NavRow({ item, active, onSelect, indent }: { item: NavItemDef; active: 
 
 export default function Sidebar({ page, onSelect }: { page: Page; onSelect: (p: Page) => void }) {
   const [appsOpen, setAppsOpen] = useState(true)
-  const appPages: Page[] = ['app-urban', 'app-disaster', 'app-change']
+  const appPages: Page[] = ['app-disaster', 'app-change']
 
   return (
     <aside className="flex h-screen w-[248px] shrink-0 flex-col border-r border-[var(--border-c)] bg-[var(--surface)]">
